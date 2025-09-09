@@ -1,0 +1,9 @@
+../Core/Src/main.c:98:5:main	1
+../Core/Src/main.c:183:6:SystemClock_Config	3
+../Core/Src/main.c:230:13:MX_FDCAN1_Init	2
+../Core/Src/main.c:274:13:MX_FDCAN2_Init	2
+../Core/Src/main.c:321:13:MX_GPIO_Init	1
+../Core/Src/main.c:349:6:HAL_FDCAN_RxFifo0Callback	4
+../Core/Src/main.c:372:6:xSendCANFunction	1
+../Core/Src/main.c:392:6:xCheckCommsFuncion	5
+../Core/Src/main.c:415:6:Error_Handler	1

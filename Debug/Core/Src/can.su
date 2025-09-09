@@ -1,0 +1,2 @@
+../Core/Src/can.c:26:6:receiveCANFromSlaves	8	static
+../Core/Src/can.c:416:6:sendMasterInfoToCAN	24	static
