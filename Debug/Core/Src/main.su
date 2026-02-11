@@ -5,5 +5,5 @@
 ../Core/Src/main.c:321:13:MX_GPIO_Init	40	static
 ../Core/Src/main.c:349:6:HAL_FDCAN_RxFifo0Callback	24	static
 ../Core/Src/main.c:372:6:xSendCANFunction	40	static
-../Core/Src/main.c:392:6:xCheckCommsFuncion	24	static
-../Core/Src/main.c:415:6:Error_Handler	8	static,ignoring_inline_asm
+../Core/Src/main.c:400:6:xCheckCommsFuncion	24	static
+../Core/Src/main.c:423:6:Error_Handler	8	static,ignoring_inline_asm
