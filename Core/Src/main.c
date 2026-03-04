@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "can.h"
 #include "errors.h"
+#include "adc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +43,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+
 FDCAN_HandleTypeDef hfdcan1;
 FDCAN_HandleTypeDef hfdcan2;
 
@@ -59,6 +63,13 @@ const osThreadAttr_t xCheckComms_attributes = {
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
+/* Definitions for xReadTemp */
+osThreadId_t xReadTempHandle;
+const osThreadAttr_t xReadTemp_attributes = {
+  .name = "xReadTemp",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
 /* USER CODE BEGIN PV */
 extern uint8_t FDCAN1RxData[8]; //slaves
 extern FDCAN_RxHeaderTypeDef FDCAN1RxHeader;
@@ -71,19 +82,25 @@ extern float slave1TempBuffer[16], slave2TempBuffer[16], slave3TempBuffer[16], s
 
 double slave1LastMessageTick = 0, slave2LastMessageTick = 0, slave3LastMessageTick = 0, slave4LastMessageTick = 0;
 
-
+float rawAdcBuffer[numberOfThermistors], voltageBuffer[numberOfThermistors], rawTempBuffer[numberOfThermistors];
+extern uint8_t FDCAN1TxData[8];
+extern float filteredReadings[numberOfThermistors];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_FDCAN2_Init(void);
+static void MX_ADC1_Init(void);
 void xSendCANFunction(void *argument);
 void xCheckCommsFuncion(void *argument);
+void xReadTempFunction(void *argument);
 
 /* USER CODE BEGIN PFP */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,10 +137,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-
+  initializeHistory();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -151,6 +170,9 @@ int main(void)
 
   /* creation of xCheckComms */
   xCheckCommsHandle = osThreadNew(xCheckCommsFuncion, NULL, &xCheckComms_attributes);
+
+  /* creation of xReadTemp */
+  xReadTempHandle = osThreadNew(xReadTempFunction, NULL, &xReadTemp_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -220,6 +242,74 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_MultiModeTypeDef multimode = {0};
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Common config
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.GainCompensation = 0;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.LowPowerAutoWait = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the ADC multi-mode
+  */
+  multimode.Mode = ADC_MODE_INDEPENDENT;
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) rawAdcBuffer, numberOfThermistors);
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -314,6 +404,23 @@ static void MX_FDCAN2_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMAMUX1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -326,8 +433,8 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -359,6 +466,12 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 		receiveCANFromSlaves();
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
 	}
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	vTaskNotifyGiveFromISR(xReadTempHandle, &xHigherPriorityTaskWoken);
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 /* USER CODE END 4 */
 
@@ -405,8 +518,8 @@ void xCheckCommsFuncion(void *argument)
   for(;;)
   {
 	  atualTick = HAL_GetTick();
-	  if((slave1LastMessageTick-atualTick>2000)|| (slave2LastMessageTick-atualTick>2000)
-	  || (slave3LastMessageTick-atualTick>2000) || (slave4LastMessageTick-atualTick>2000))
+	  if((atualTick-slave1LastMessageTick>2000)|| (atualTick-slave2LastMessageTick>2000)
+	  || (atualTick-slave3LastMessageTick>2000) || (atualTick-slave4LastMessageTick>2000))
 	  {
 		  tmsErrorCode = commFault;
 		  Error_Handler();
@@ -414,6 +527,30 @@ void xCheckCommsFuncion(void *argument)
     osDelay(1000);
   }
   /* USER CODE END xCheckCommsFuncion */
+}
+
+/* USER CODE BEGIN Header_xReadTempFunction */
+/**
+* @brief Function implementing the xReadTemp thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_xReadTempFunction */
+void xReadTempFunction(void *argument)
+{
+  /* USER CODE BEGIN xReadTempFunction */
+	xReadTempHandle = xTaskGetCurrentTaskHandle();
+  /* Infinite loop */
+  for(;;)
+  {
+	  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+	  for(int i = 0; i < numberOfThermistors; i++){
+		  rawTempBuffer[i] =  convertVoltageToTemperature(convertBitsToVoltage(rawAdcBuffer[i]));
+	  }
+	  applyMovingAverageFilter(rawTempBuffer);
+    osDelay(1);
+  }
+  /* USER CODE END xReadTempFunction */
 }
 
 /**

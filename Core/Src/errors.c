@@ -30,7 +30,7 @@ void injectFault(int temp){
 		temp = 100;
 	}
 	else if(simulateCommLoss){
-		slave1LastMessageTick = 10000000;
+		slave1LastMessageTick = 0;
 	}
 }
 
