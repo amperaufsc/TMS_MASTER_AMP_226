@@ -85,7 +85,7 @@ extern float slave1TempBuffer[thermistorsRecieved], slave2TempBuffer[thermistors
 
 extern uint32_t slave1LastMessageTick, slave2LastMessageTick, slave3LastMessageTick, slave4LastMessageTick;
 
-uint32_t rawAdcBuffer[numberOfThermistors] = {0};
+uint32_t rawAdcBuffer[numberOfThermistors] = {0}; filteredAdcBuffer[numberOfThermistors] = {0};
 float voltageBuffer[numberOfThermistors] = {0}, tempBuffer[numberOfThermistors] = {0};
 
 extern uint8_t FDCAN1TxData[8];

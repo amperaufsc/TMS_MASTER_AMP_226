@@ -12,7 +12,7 @@
 bool simulateHighTemp = false;
 bool simulateCommLoss = false;
 
-extern double slave1LastMessageTick;
+extern uint32_t slave1LastMessageTick;
 
 int findMaxVal(const float *buffer) {
 	int maxVal = buffer[0];
