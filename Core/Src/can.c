@@ -95,7 +95,7 @@ void sendMasterInfoToCAN(int temp1, int temp2, int temp3, int temp4, int error){
 		static int retry = 0;
 		retry++;
 		if(retry>=20){
-			Error_Handler;
+			Error_Handler();
 		}
 	}
 }
