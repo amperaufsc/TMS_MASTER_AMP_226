@@ -91,7 +91,12 @@ void sendMasterInfoToCAN(int temp1, int temp2, int temp3, int temp4, int error){
 	FDCAN2TxData[3] = temp3;
 	FDCAN2TxData[4] = temp4;
 
-	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
-
+	while(HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData) != HAL_OK){
+		static int retry = 0;
+		retry++;
+		if(retry>=20){
+			Error_Handler;
+		}
+	}
 }
 
