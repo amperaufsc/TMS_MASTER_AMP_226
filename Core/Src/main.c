@@ -25,6 +25,7 @@
 #include "can.h"
 #include "errors.h"
 #include "adc.h"
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,13 +79,16 @@ extern uint8_t FDCAN2TxData[8]; //geral
 extern FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
 
 extern int tmsErrorCode;
-extern float slave1TempBuffer[16], slave2TempBuffer[16], slave3TempBuffer[16], slave4TempBuffer[16];
 
-double slave1LastMessageTick = 0, slave2LastMessageTick = 0, slave3LastMessageTick = 0, slave4LastMessageTick = 0;
+extern float slave1TempBuffer[thermistorsRecieved], slave2TempBuffer[thermistorsRecieved],
+			 slave3TempBuffer[thermistorsRecieved], slave4TempBuffer[thermistorsRecieved];
 
-float rawAdcBuffer[numberOfThermistors], voltageBuffer[numberOfThermistors], rawTempBuffer[numberOfThermistors];
+extern uint32_t slave1LastMessageTick, slave2LastMessageTick, slave3LastMessageTick, slave4LastMessageTick;
+
+uint32_t rawAdcBuffer[numberOfThermistors] = {0};
+float voltageBuffer[numberOfThermistors] = {0}, tempBuffer[numberOfThermistors] = {0};
+
 extern uint8_t FDCAN1TxData[8];
-extern float filteredReadings[numberOfThermistors];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -142,7 +146,6 @@ int main(void)
   MX_FDCAN2_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  initializeHistory();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -453,17 +456,21 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs){
-	if(RxFifo0ITs == FDCAN_IT_RX_FIFO0_NEW_MESSAGE){
-		int count = 0;
-		while(HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN1RxHeader, FDCAN1RxData) != HAL_OK){
-			count++;
-			if(count > 20){
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+{
+	if(RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
+	{
+		while(HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0)
+		{
+			if(HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN1RxHeader, FDCAN1RxData) != HAL_OK)
+			{
 				tmsErrorCode = commFault;
 				Error_Handler();
 			}
+
+			receiveCANFromSlaves();
 		}
-		receiveCANFromSlaves();
+
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
 	}
 }
@@ -496,6 +503,7 @@ void xSendCANFunction(void *argument)
 	  if((findMaxVal(slave1TempBuffer) > maxTemperatureThreshold) || (findMaxVal(slave2TempBuffer) > maxTemperatureThreshold)
 		|| (findMaxVal(slave3TempBuffer) > maxTemperatureThreshold) || (findMaxVal(slave4TempBuffer) > maxTemperatureThreshold))
 	  {
+		  tmsErrorCode = overTemperatureFault;
 		  Error_Handler();
 	  }
     osDelay(100);
@@ -513,7 +521,7 @@ void xSendCANFunction(void *argument)
 void xCheckCommsFuncion(void *argument)
 {
   /* USER CODE BEGIN xCheckCommsFuncion */
-	static long unsigned int atualTick;
+	static uint32_t atualTick = 0;
   /* Infinite loop */
   for(;;)
   {
@@ -538,17 +546,38 @@ void xCheckCommsFuncion(void *argument)
 /* USER CODE END Header_xReadTempFunction */
 void xReadTempFunction(void *argument)
 {
-  /* USER CODE BEGIN xReadTempFunction */
+	/* USER CODE BEGIN xReadTempFunction */
+#ifdef simulateSlave
+	static bool filtersInitialized = false;
+#endif
 	xReadTempHandle = xTaskGetCurrentTaskHandle();
-  /* Infinite loop */
-  for(;;)
-  {
-	  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-	  for(int i = 0; i < numberOfThermistors; i++){
-		  rawTempBuffer[i] =  convertVoltageToTemperature(convertBitsToVoltage(rawAdcBuffer[i]));
-	  }
-	  applyMovingAverageFilter(rawTempBuffer);
-    osDelay(1);
+	/* Infinite loop */
+	for(;;)
+	{
+		//	  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+#ifdef simulateSlave
+		if(!filtersInitialized)
+		{
+			initTemperatureFilters(rawAdcBuffer);
+			filtersInitialized = true;
+		}
+
+		for(int i = 0; i < numberOfThermistors; i++){
+
+			uint16_t medianADC = applyMedianFilter(rawAdcBuffer[i], i);
+			filteredAdcBuffer[i] = applyIIRFilter(medianADC, i);
+			readStatus = checkThermistorConnection(filteredAdcBuffer[i]);
+
+			if(readStatus == OK){
+				tempBuffer[i] = convertVoltageToTemperature(convertBitsToVoltage(filteredAdcBuffer[i]));
+			}
+			else{
+				thermistorFault = 1;
+				Error_Handler();
+			}
+		}
+#endif
+		osDelay(1);
   }
   /* USER CODE END xReadTempFunction */
 }
@@ -560,7 +589,7 @@ void xReadTempFunction(void *argument)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, RESET);
 //	sendMasterInfoToCAN(labubu, tmsErrorCode);
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();

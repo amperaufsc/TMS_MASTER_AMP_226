@@ -13,10 +13,13 @@
 
 #define commFault 1<<0
 #define overTemperatureFault 1<<1
+#define thermistorConnectionFault 1<<2
 
 #define maxTemperatureThreshold 60
 
-int findMaxVal(float buffer[]);
+#define thermistorsRecieved 16
+
+int findMaxVal(const float *buffer);
 void injectFault(int temp);
 
 #endif /* INC_ERRORS_H_ */

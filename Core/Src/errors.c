@@ -14,14 +14,14 @@ bool simulateCommLoss = false;
 
 extern double slave1LastMessageTick;
 
-int findMaxVal(float buffer[]){
-	int len = sizeof(buffer)/sizeof(buffer[0]);
+int findMaxVal(const float *buffer) {
 	int maxVal = buffer[0];
-	for(int i = 0; i < len; i++){
-		if(buffer[i] > buffer[0]){
+	for (size_t i = 1; i < thermistorsRecieved; ++i) {
+		if (buffer[i] > maxVal) {
 			maxVal = buffer[i];
 		}
 	}
+
 	return maxVal;
 }
 

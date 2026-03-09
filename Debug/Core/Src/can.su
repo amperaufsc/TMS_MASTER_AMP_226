@@ -1,2 +1,3 @@
-../Core/Src/can.c:26:6:receiveCANFromSlaves	8	static
-../Core/Src/can.c:416:6:sendMasterInfoToCAN	24	static
+../Core/Src/can.c:47:6:processSlaveBurst	40	static
+../Core/Src/can.c:60:6:receiveCANFromSlaves	24	static
+../Core/Src/can.c:84:6:sendMasterInfoToCAN	24	static
