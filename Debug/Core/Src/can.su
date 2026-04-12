@@ -1,3 +1,8 @@
-../Core/Src/can.c:47:6:processSlaveBurst	40	static
-../Core/Src/can.c:60:6:receiveCANFromSlaves	24	static
-../Core/Src/can.c:84:6:sendMasterInfoToCAN	24	static
+../Core/Src/can.c:86:13:processSlaveBurst	40	static
+../Core/Src/can.c:103:13:dispatchRxMessage	32	static
+../Core/Src/can.c:138:6:processRxQueue	64	static
+../Core/Src/can.c:157:6:processRx2Queue	64	static
+../Core/Src/can.c:178:23:sendSingleFrame	24	static
+../Core/Src/can.c:220:23:sendSingleFrameCAN1	24	static
+../Core/Src/can.c:265:16:sendMasterInfoToCAN	32	static
+../Core/Src/can.c:288:16:sendCAN1Loopback	16	static

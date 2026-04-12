@@ -8,18 +8,18 @@
 #ifndef INC_ERRORS_H_
 #define INC_ERRORS_H_
 
-#include "can.h"
 #include "main.h"
 
 #define commFault 1<<0
 #define overTemperatureFault 1<<1
 #define thermistorConnectionFault 1<<2
+#define masterCANFault 1<<3
 
 #define maxTemperatureThreshold 60
 
 #define thermistorsRecieved 16
 
-int findMaxVal(const float *buffer);
+float findMaxVal(const float *buffer);
 void injectFault(int temp);
 
 #endif /* INC_ERRORS_H_ */

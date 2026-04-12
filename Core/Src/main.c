@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -22,10 +22,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "adc.h"
 #include "can.h"
 #include "errors.h"
-#include "adc.h"
+#include "queue.h"
 #include <stdbool.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,43 +54,65 @@ FDCAN_HandleTypeDef hfdcan2;
 
 /* Definitions for xSendCAN */
 osThreadId_t xSendCANHandle;
-const osThreadAttr_t xSendCAN_attributes = {
-  .name = "xSendCAN",
-  .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 128 * 4
-};
+const osThreadAttr_t xSendCAN_attributes = {.name = "xSendCAN",
+                                            .priority =
+                                                (osPriority_t)osPriorityNormal,
+                                            .stack_size = 256 * 4};
 /* Definitions for xCheckComms */
 osThreadId_t xCheckCommsHandle;
-const osThreadAttr_t xCheckComms_attributes = {
-  .name = "xCheckComms",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
-};
+const osThreadAttr_t xCheckComms_attributes = {.name = "xCheckComms",
+                                               .priority =
+                                                   (osPriority_t)osPriorityLow,
+                                               .stack_size = 128 * 4};
 /* Definitions for xReadTemp */
 osThreadId_t xReadTempHandle;
-const osThreadAttr_t xReadTemp_attributes = {
-  .name = "xReadTemp",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
-};
+const osThreadAttr_t xReadTemp_attributes = {.name = "xReadTemp",
+                                             .priority =
+                                                 (osPriority_t)osPriorityLow,
+                                             .stack_size = 128 * 4};
 /* USER CODE BEGIN PV */
-extern uint8_t FDCAN1RxData[8]; //slaves
-extern FDCAN_RxHeaderTypeDef FDCAN1RxHeader;
+osMutexId_t tempBufferMutexHandle;
+const osMutexAttr_t tempBufferMutex_attributes = {.name = "tempBufferMutex"};
 
-extern uint8_t FDCAN2TxData[8]; //geral
-extern FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
+uint16_t rawAdcBuffer[numberOfThermistors];
+float tempBuffer[numberOfThermistors] = {0},
+      voltageBuffer[numberOfThermistors] = {0};
+extern uint16_t filteredAdcBuffer[numberOfThermistors];
+
+int thermistorFault = 0;
+thermStatus readStatus = 0;
+
+/* Fila de recepção CAN (FreeRTOS Message Queue) */
+osMessageQueueId_t canRxQueueHandle;
+
+#ifdef testLoopback
+osMessageQueueId_t canRx2QueueHandle;
+#endif
 
 extern int tmsErrorCode;
+extern FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
 
-extern float slave1TempBuffer[thermistorsRecieved], slave2TempBuffer[thermistorsRecieved],
-			 slave3TempBuffer[thermistorsRecieved], slave4TempBuffer[thermistorsRecieved];
+#ifdef testLoopback
+extern FDCAN_TxHeaderTypeDef FDCAN1TxHeader;
+#endif
 
-extern uint32_t slave1LastMessageTick, slave2LastMessageTick, slave3LastMessageTick, slave4LastMessageTick;
+/* Variáveis de debug (Live Expressions) */
+CAN_TxStatus_t lastTxStatus = CAN_TX_OK;  // Status do último envio FDCAN2
+CAN_RxMsg_t lastRxMsg;                     // Última mensagem CAN1 recebida
 
-uint32_t rawAdcBuffer[numberOfThermistors] = {0}; filteredAdcBuffer[numberOfThermistors] = {0};
-float voltageBuffer[numberOfThermistors] = {0}, tempBuffer[numberOfThermistors] = {0};
+#ifdef testLoopback
+CAN_TxStatus_t lastTx1Status = CAN_TX_OK; // Status do último envio CAN1 (loopback)
+CAN_RxMsg_t lastRx2Msg;                    // Última mensagem CAN2 recebida (loopback)
+#endif
 
-extern uint8_t FDCAN1TxData[8];
+extern float slave1TempBuffer[thermistorsRecieved],
+    slave2TempBuffer[thermistorsRecieved],
+    slave3TempBuffer[thermistorsRecieved],
+    slave4TempBuffer[thermistorsRecieved];
+
+extern uint32_t slave1LastMessageTick, slave2LastMessageTick,
+    slave3LastMessageTick, slave4LastMessageTick;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,7 +127,10 @@ void xCheckCommsFuncion(void *argument);
 void xReadTempFunction(void *argument);
 
 /* USER CODE BEGIN PFP */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
+//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
+//#ifdef testLoopback
+//void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs);
+//#endif
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc);
 /* USER CODE END PFP */
 
@@ -113,11 +140,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc);
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
 
   /* USER CODE BEGIN 1 */
 
@@ -125,7 +151,8 @@ int main(void)
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick.
+   */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -152,6 +179,7 @@ int main(void)
   osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
+  tempBufferMutexHandle = osMutexNew(&tempBufferMutex_attributes);
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
@@ -164,16 +192,20 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
+  /* Fila de recepção CAN1: 32 slots para suportar 4 Slaves × 8 quadros por burst */
+  canRxQueueHandle = osMessageQueueNew(CAN_RX_QUEUE_SIZE, sizeof(CAN_RxMsg_t), NULL);
+
+#ifdef testLoopback
+  /* Fila de recepção CAN2: 16 slots para loopback de teste */
+  canRx2QueueHandle = osMessageQueueNew(16, sizeof(CAN_RxMsg_t), NULL);
+#endif
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* creation of xSendCAN */
   xSendCANHandle = osThreadNew(xSendCANFunction, NULL, &xSendCAN_attributes);
-
   /* creation of xCheckComms */
   xCheckCommsHandle = osThreadNew(xCheckCommsFuncion, NULL, &xCheckComms_attributes);
-
   /* creation of xReadTemp */
   xReadTempHandle = osThreadNew(xReadTempFunction, NULL, &xReadTemp_attributes);
 
@@ -192,8 +224,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -202,21 +233,20 @@ int main(void)
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-  */
+   */
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
+   * in the RCC_OscInitTypeDef structure.
+   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -227,33 +257,30 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+   */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
     Error_Handler();
   }
 }
 
 /**
-  * @brief ADC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC1_Init(void)
-{
+ * @brief ADC1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ADC1_Init(void) {
 
   /* USER CODE BEGIN ADC1_Init 0 */
 
@@ -267,7 +294,7 @@ static void MX_ADC1_Init(void)
   /* USER CODE END ADC1_Init 1 */
 
   /** Common config
-  */
+   */
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
@@ -284,44 +311,39 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc1.Init.OversamplingMode = DISABLE;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
+  if (HAL_ADC_Init(&hadc1) != HAL_OK) {
     Error_Handler();
   }
 
   /** Configure the ADC multi-mode
-  */
+   */
   multimode.Mode = ADC_MODE_INDEPENDENT;
-  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
-  {
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK) {
     Error_Handler();
   }
 
   /** Configure Regular Channel
-  */
+   */
   sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) rawAdcBuffer, numberOfThermistors);
+  //  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) rawAdcBuffer, numberOfThermistors);
   /* USER CODE END ADC1_Init 2 */
-
 }
 
 /**
-  * @brief FDCAN1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_FDCAN1_Init(void)
-{
+ * @brief FDCAN1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_FDCAN1_Init(void) {
 
   /* USER CODE BEGIN FDCAN1_Init 0 */
 
@@ -333,39 +355,67 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Instance = FDCAN1;
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
+#ifdef testLoopback
+  hfdcan1.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
+#else
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+#endif
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
   hfdcan1.Init.NominalPrescaler = 10;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
-  hfdcan1.Init.NominalTimeSeg1 = 22;
-  hfdcan1.Init.NominalTimeSeg2 = 11;
+  hfdcan1.Init.NominalTimeSeg1 = 26;
+  hfdcan1.Init.NominalTimeSeg2 = 7;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 1;
   hfdcan1.Init.DataTimeSeg2 = 1;
-  hfdcan1.Init.StdFiltersNbr = 0;
+  hfdcan1.Init.StdFiltersNbr = 1;
   hfdcan1.Init.ExtFiltersNbr = 0;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
-  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
-  {
+  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN1_Init 2 */
+
+  /* Filtro CAN1: aceita mensagens das Slaves (IDs 0x010 a 0x053).
+   * Em modo testLoopback, expande a faixa para incluir idTestCAN1 (0x00A). */
+  FDCAN_FilterTypeDef sFilterConfig;
+  sFilterConfig.IdType = FDCAN_STANDARD_ID;
+  sFilterConfig.FilterIndex = 0;
+  sFilterConfig.FilterType = FDCAN_FILTER_RANGE;
+  sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+#ifdef testLoopback
+  sFilterConfig.FilterID1 = 0x00A; // Início da faixa (inclui ID de loopback)
+#else
+  sFilterConfig.FilterID1 = 0x010; // Início da faixa (primeiro ID de Slave)
+#endif
+  sFilterConfig.FilterID2 = 0x053; // Fim da faixa (último ID de erro de Slave)
+
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK) {
+    Error_Handler();
+  }
+
+  /* Ativa interrupção de nova mensagem na FIFO0 e inicia o módulo CAN1 */
   HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
   HAL_FDCAN_Start(&hfdcan1);
-  /* USER CODE END FDCAN1_Init 2 */
 
+#ifdef testLoopback
+  /* Configura header de transmissão CAN1 para teste de loopback */
+  FDCAN1TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
+  FDCAN1TxHeader.IdType = FDCAN_STANDARD_ID;
+  FDCAN1TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+#endif
+  /* USER CODE END FDCAN1_Init 2 */
 }
 
 /**
-  * @brief FDCAN2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_FDCAN2_Init(void)
-{
+ * @brief FDCAN2 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_FDCAN2_Init(void) {
 
   /* USER CODE BEGIN FDCAN2_Init 0 */
 
@@ -377,40 +427,60 @@ static void MX_FDCAN2_Init(void)
   hfdcan2.Instance = FDCAN2;
   hfdcan2.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan2.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
+#ifdef testLoopback
+  hfdcan2.Init.Mode = FDCAN_MODE_INTERNAL_LOOPBACK;
+#else
   hfdcan2.Init.Mode = FDCAN_MODE_NORMAL;
+#endif
   hfdcan2.Init.AutoRetransmission = DISABLE;
   hfdcan2.Init.TransmitPause = DISABLE;
   hfdcan2.Init.ProtocolException = DISABLE;
   hfdcan2.Init.NominalPrescaler = 10;
   hfdcan2.Init.NominalSyncJumpWidth = 1;
-  hfdcan2.Init.NominalTimeSeg1 = 22;
-  hfdcan2.Init.NominalTimeSeg2 = 11;
+  hfdcan2.Init.NominalTimeSeg1 = 26;
+  hfdcan2.Init.NominalTimeSeg2 = 7;
   hfdcan2.Init.DataPrescaler = 1;
   hfdcan2.Init.DataSyncJumpWidth = 1;
   hfdcan2.Init.DataTimeSeg1 = 1;
   hfdcan2.Init.DataTimeSeg2 = 1;
   hfdcan2.Init.StdFiltersNbr = 0;
-  hfdcan2.Init.ExtFiltersNbr = 0;
+  hfdcan2.Init.ExtFiltersNbr = 1;
   hfdcan2.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
-  if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK)
-  {
+  if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN2_Init 2 */
+
+  /* Filtro CAN2: aceita todas as mensagens Extended ID (29 bits) no FIFO1.
+   * O barramento CAN2 usa IDs extendidos (ex: protocolo do veículo/ECU).
+   * FDCAN2 usa FIFO1 para não conflitar com FDCAN1 que usa FIFO0. */
+  FDCAN_FilterTypeDef sFilterConfig2;
+  sFilterConfig2.IdType = FDCAN_EXTENDED_ID;
+  sFilterConfig2.FilterIndex = 0;
+  sFilterConfig2.FilterType = FDCAN_FILTER_MASK;
+  sFilterConfig2.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+  sFilterConfig2.FilterID1 = 0; // ID base = 0x00000000 (aceita qualquer ID)
+  sFilterConfig2.FilterID2 =
+      0; // Máscara = 0x00000000 (todos os 29 bits são "don't care")
+
+  if (HAL_FDCAN_ConfigFilter(&hfdcan2, &sFilterConfig2) != HAL_OK) {
+    Error_Handler();
+  }
+
+  /* Ativa interrupção de nova mensagem na FIFO1 e inicia o módulo CAN2 */
+  HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
   HAL_FDCAN_Start(&hfdcan2);
 
   FDCAN2TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  FDCAN2TxHeader.IdType = FDCAN_STANDARD_ID;
+  FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
   FDCAN2TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
   /* USER CODE END FDCAN2_Init 2 */
-
 }
 
 /**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
+ * Enable DMA controller clock
+ */
+static void MX_DMA_Init(void) {
 
   /* DMA controller clock enable */
   __HAL_RCC_DMAMUX1_CLK_ENABLE();
@@ -420,16 +490,14 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-
 }
 
 /**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
+ * @brief GPIO Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_GPIO_Init(void) {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
@@ -441,10 +509,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, shutdownPin_Pin|userLED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, shutdownPin_Pin | userLED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : shutdownPin_Pin userLED_Pin */
-  GPIO_InitStruct.Pin = shutdownPin_Pin|userLED_Pin;
+  GPIO_InitStruct.Pin = shutdownPin_Pin | userLED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -456,56 +524,100 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
-{
-	if(RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
-	{
-		while(HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0)
-		{
-			if(HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN1RxHeader, FDCAN1RxData) != HAL_OK)
-			{
-				tmsErrorCode = commFault;
-				Error_Handler();
-			}
 
-			receiveCANFromSlaves();
-		}
+/* ====================== CALLBACKS DE INTERRUPÇÃO ====================== */
 
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
-	}
+/**
+ * @brief  Callback de recepção CAN1 (Slaves) — FIFO0
+ */
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
+                               uint32_t RxFifo0ITs) {
+//  if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
+//    CAN_RxMsg_t rxMsg;
+//    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+//
+//    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxMsg.header,
+//                               rxMsg.data) == HAL_OK) {
+//      xQueueSendFromISR((QueueHandle_t)canRxQueueHandle, &rxMsg,
+//                        &xHigherPriorityTaskWoken);
+//      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+//    }
+//  }
 }
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	vTaskNotifyGiveFromISR(xReadTempHandle, &xHigherPriorityTaskWoken);
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+#ifdef testLoopback
+/**
+ * @brief  Callback de recepção CAN2 (loopback) — FIFO1
+ */
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan,
+                               uint32_t RxFifo1ITs) {
+//  if (RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) {
+//    CAN_RxMsg_t rxMsg;
+//    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+//
+//    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rxMsg.header,
+//                               rxMsg.data) == HAL_OK) {
+//      xQueueSendFromISR((QueueHandle_t)canRx2QueueHandle, &rxMsg,
+//                        &xHigherPriorityTaskWoken);
+//      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+//    }
+//  }
+}
+#endif
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+#ifdef simulateSlave
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  vTaskNotifyGiveFromISR(xReadTempHandle, &xHigherPriorityTaskWoken);
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+#endif
 }
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_xSendCANFunction */
 /**
-  * @brief  Function implementing the xSendCAN thread.
-  * @param  argument: Not used
-  * @retval None
-  */
+ * @brief  Function implementing the xSendCAN thread.
+ * @param  argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_xSendCANFunction */
-void xSendCANFunction(void *argument)
-{
+void xSendCANFunction(void *argument) {
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  for(;;)
-  {
-	  sendMasterInfoToCAN(findMaxVal(slave1TempBuffer), findMaxVal(slave2TempBuffer),
-			  findMaxVal(slave3TempBuffer), findMaxVal(slave4TempBuffer), tmsErrorCode);
+  /* Loop infinito */
+  for (;;) {
+    /* Drena e processa todas as mensagens CAN recebidas das Slaves */
+//    processRxQueue();
 
-	  injectFault(findMaxVal(slave1TempBuffer));
+//#ifdef testLoopback
+//    /* Drena recepção CAN2 (loopback: sendMasterInfoToCAN volta pela FIFO1) */
+////    processRx2Queue();
+//#endif
 
-	  if((findMaxVal(slave1TempBuffer) > maxTemperatureThreshold) || (findMaxVal(slave2TempBuffer) > maxTemperatureThreshold)
-		|| (findMaxVal(slave3TempBuffer) > maxTemperatureThreshold) || (findMaxVal(slave4TempBuffer) > maxTemperatureThreshold))
-	  {
-		  tmsErrorCode = overTemperatureFault;
-		  Error_Handler();
-	  }
+    /* Calcula a temperatura máxima de cada Slave */
+//    int max1 = (int)findMaxVal(slave1TempBuffer);
+//    int max2 = (int)findMaxVal(slave2TempBuffer);
+//    int max3 = (int)findMaxVal(slave3TempBuffer);
+//    int max4 = (int)findMaxVal(slave4TempBuffer);
+
+//    injectFault(max1);
+
+    /* Envia resumo do TMS para o barramento geral via FDCAN2 */
+//    lastTxStatus = sendMasterInfoToCAN(max1, max2, max3, max4, tmsErrorCode);
+
+#ifdef testLoopback
+    /* Envia dados de teste pelo CAN1 (loopback: volta pela FIFO0) */
+//    lastTx1Status = sendCAN1Loopback();
+#endif
+
+    /* Verifica se alguma Slave ultrapassou o limiar de temperatura */
+//    if ((max1 > maxTemperatureThreshold) || (max2 > maxTemperatureThreshold) ||
+//        (max3 > maxTemperatureThreshold) || (max4 > maxTemperatureThreshold)) {
+//      tmsErrorCode |= overTemperatureFault;
+//      osDelay(5);
+////      Error_Handler();
+//    }
+
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
     osDelay(100);
   }
   /* USER CODE END 5 */
@@ -513,25 +625,25 @@ void xSendCANFunction(void *argument)
 
 /* USER CODE BEGIN Header_xCheckCommsFuncion */
 /**
-* @brief Function implementing the xCheckComms thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the xCheckComms thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_xCheckCommsFuncion */
-void xCheckCommsFuncion(void *argument)
-{
+void xCheckCommsFuncion(void *argument) {
   /* USER CODE BEGIN xCheckCommsFuncion */
-	static uint32_t atualTick = 0;
+  static uint32_t atualTick = 0;
   /* Infinite loop */
-  for(;;)
-  {
-	  atualTick = HAL_GetTick();
-	  if((atualTick-slave1LastMessageTick>2000)|| (atualTick-slave2LastMessageTick>2000)
-	  || (atualTick-slave3LastMessageTick>2000) || (atualTick-slave4LastMessageTick>2000))
-	  {
-		  tmsErrorCode = commFault;
-		  Error_Handler();
-	  }
+  for (;;) {
+//    atualTick = HAL_GetTick();
+//    if ((atualTick - slave1LastMessageTick > 2000) ||
+//        (atualTick - slave2LastMessageTick > 2000) ||
+//        (atualTick - slave3LastMessageTick > 2000) ||
+//        (atualTick - slave4LastMessageTick > 2000)) {
+//      tmsErrorCode |= commFault;
+//      osDelay(5);
+////      Error_Handler();
+//    }
     osDelay(1000);
   }
   /* USER CODE END xCheckCommsFuncion */
@@ -539,79 +651,82 @@ void xCheckCommsFuncion(void *argument)
 
 /* USER CODE BEGIN Header_xReadTempFunction */
 /**
-* @brief Function implementing the xReadTemp thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the xReadTemp thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_xReadTempFunction */
-void xReadTempFunction(void *argument)
-{
-	/* USER CODE BEGIN xReadTempFunction */
+void xReadTempFunction(void *argument) {
+  /* USER CODE BEGIN xReadTempFunction */
 #ifdef simulateSlave
-	static bool filtersInitialized = false;
+  static bool filtersInitialized = false;
 #endif
-	xReadTempHandle = xTaskGetCurrentTaskHandle();
-	/* Infinite loop */
-	for(;;)
-	{
-		//	  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  // xReadTempHandle = xTaskGetCurrentTaskHandle();
+  /* Infinite loop */
+  for (;;) {
 #ifdef simulateSlave
-		if(!filtersInitialized)
-		{
-			initTemperatureFilters(rawAdcBuffer);
-			filtersInitialized = true;
-		}
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)rawAdcBuffer, numberOfThermistors);
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    HAL_ADC_Stop_DMA(&hadc1);
 
-		for(int i = 0; i < numberOfThermistors; i++){
+    if (!filtersInitialized) {
+      initTemperatureFilters(rawAdcBuffer);
+      filtersInitialized = true;
+    }
 
-			uint16_t medianADC = applyMedianFilter(rawAdcBuffer[i], i);
-			filteredAdcBuffer[i] = applyIIRFilter(medianADC, i);
-			readStatus = checkThermistorConnection(filteredAdcBuffer[i]);
+    for (int i = 0; i < numberOfThermistors; i++) {
 
-			if(readStatus == OK){
-				tempBuffer[i] = convertVoltageToTemperature(convertBitsToVoltage(filteredAdcBuffer[i]));
-			}
-			else{
-				thermistorFault = 1;
-				Error_Handler();
-			}
-		}
+      uint16_t medianADC = applyMedianFilter(rawAdcBuffer[i], i);
+      filteredAdcBuffer[i] = applyIIRFilter(medianADC, i);
+      readStatus = checkThermistorConnection(filteredAdcBuffer[i]);
+
+      if (readStatus == OK) {
+        if (osMutexAcquire(tempBufferMutexHandle, osWaitForever) == osOK) {
+          tempBuffer[i] = convertVoltageToTemperature(
+              convertBitsToVoltage(filteredAdcBuffer[i]));
+          osMutexRelease(tempBufferMutexHandle);
+        }
+      } else {
+        thermistorFault = 1;
+        // Error_Handler();
+      }
+    }
 #endif
-		osDelay(1);
+    osDelay(100);
   }
   /* USER CODE END xReadTempFunction */
 }
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
   /* USER CODE BEGIN Error_Handler_Debug */
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, RESET);
-//	sendMasterInfoToCAN(labubu, tmsErrorCode);
-  /* User can add his own implementation to report the HAL error return state */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
+  
+  /* Tenta enviar o erro pelo CAN apenas uma vez, sem recursão */
+  // sendMasterInfoToCAN(0, 0, 0, 0, tmsErrorCode);
+  
   __disable_irq();
-  while (1)
-  {
+  while (1) {
   }
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t *file, uint32_t line)
-{
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
+void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line
+     number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
+     line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
