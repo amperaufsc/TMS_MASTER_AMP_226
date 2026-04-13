@@ -19,9 +19,9 @@
 
 /* ================== Test Modes & Debug Macros ================== */
 /** @brief Enable to simulate CAN1 Slave traffic via internal loopback */
-#define testLoopbackCAN1
+//#define testLoopbackCAN1
 /** @brief Enable to simulate CAN2 Master traffic via internal loopback */
-#define testLoopbackCAN2
+//#define testLoopbackCAN2
 
 /* ================== System Configuration ======================= */
 /** @brief Number of Slave modules connected to the CAN1 network */
