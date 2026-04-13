@@ -1,3 +1,7 @@
-../Core/Src/can.c:47:6:processSlaveBurst	1
-../Core/Src/can.c:60:6:receiveCANFromSlaves	8
-../Core/Src/can.c:84:6:sendMasterInfoToCAN	3
+../Core/Src/can.c:47:23:sendSingleFrame	6
+../Core/Src/can.c:75:6:processSlaveBurst	1
+../Core/Src/can.c:88:6:receiveCANFromSlaves	6
+../Core/Src/can.c:110:6:receiveCANFromGeral	1
+../Core/Src/can.c:115:6:sendMasterInfoToCAN	4
+../Core/Src/can.c:133:6:sendToSlavesCAN	4
+../Core/Src/can.c:151:6:simulateSlaveBurst	2

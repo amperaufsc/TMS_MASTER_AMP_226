@@ -14,12 +14,14 @@
 #define commFault 1<<0
 #define overTemperatureFault 1<<1
 #define thermistorConnectionFault 1<<2
+#define masterCANFault 1<<3
 
-#define maxTemperatureThreshold 60
+#define maxTemperatureThreshold 55
 
-#define thermistorsRecieved 16
+#define thermistorsPerSlave 16
+#define thermistorsRecieved thermistorsPerSlave
 
 int findMaxVal(const float *buffer);
-void injectFault(int temp);
+void injectFault(float *temp);
 
 #endif /* INC_ERRORS_H_ */

@@ -12,25 +12,25 @@
 bool simulateHighTemp = false;
 bool simulateCommLoss = false;
 
-extern uint32_t slave1LastMessageTick;
+extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 
 int findMaxVal(const float *buffer) {
-	int maxVal = buffer[0];
+	float maxVal = buffer[0];
 	for (size_t i = 1; i < thermistorsRecieved; ++i) {
 		if (buffer[i] > maxVal) {
 			maxVal = buffer[i];
 		}
 	}
 
-	return maxVal;
+	return (int)maxVal;
 }
 
-void injectFault(int temp){
+void injectFault(float *temp){
 	if(simulateHighTemp){
-		temp = 100;
+		*temp = 100.0f;
 	}
 	else if(simulateCommLoss){
-		slave1LastMessageTick = 0;
+		slaveLastMessageTicks[0] = 0;
 	}
 }
 
