@@ -514,28 +514,42 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief  Callback for FDCAN1 (Slave Network) RX FIFO 0.
+ * Directly processes incoming standard ID messages from slaves.
+ */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
 	if (hfdcan->Instance == FDCAN1) {
 		if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
-			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN1RxHeader,
+			/* Retrieve message from hardware FIFO */
+			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO_0, &FDCAN1RxHeader,
 					FDCAN1RxData) == HAL_OK) {
-				receiveCANFromSlaves();
+				receiveCANFromSlaves(); // Process slave data immediately
 			}
 		}
 	}
 }
 
+/**
+ * @brief  Callback for FDCAN2 (General Bus) RX FIFO 1.
+ * Processes incoming extended ID messages for telemetry and control.
+ */
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs) {
 	if (hfdcan->Instance == FDCAN2) {
 		if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
-			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &FDCAN2RxHeader,
+			/* Retrieve message from hardware FIFO */
+			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO_1, &FDCAN2RxHeader,
 					FDCAN2RxData) == HAL_OK) {
-				receiveCANFromGeral();
+				receiveCANFromGeral(); // Update global telemetry state
 			}
 		}
 	}
 }
 
+/**
+ * @brief  Callback for ADC DMA completion.
+ * Triggers the xReadTemp task to process simulations if enabled.
+ */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 #ifdef simulateSlave
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -555,7 +569,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 void xSendCANFunction(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
+  /* This task manages periodic status transmission and fault checking (10Hz) */
   for(;;)
   {
 	  float maxTemps[numberOfSlaves] = {0};
@@ -563,20 +577,26 @@ void xSendCANFunction(void *argument)
 		  maxTemps[i] = findMaxVal(slaveTempBuffers[i]);
 	  }
 
+	  /* Send Master status and maximum temperatures to CAN2 */
 	  sendMasterInfoToCAN(maxTemps, tmsErrorCode);
 
 #ifdef testLoopbackCAN1
+	  /* Generate artificial slave traffic if loopback testing is enabled */
 	  simulateSlaveBurst(0, 0);
 #endif
 
+	  /* Inject simulated faults if global debug flags are set */
 	  injectFault(&maxTemps[0]);
 
+	  /* Check for Over-Temperature faults */
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(maxTemps[i] > maxTemperatureThreshold){
 			  tmsErrorCode |= overTemperatureFault;
-			  Error_Handler();
+			  Error_Handler(); // Trigger Safety Shutdown
 		  }
 	  }
+
+	  /* Visual heartbeat for OS health */
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
     osDelay(100);
   }
@@ -593,19 +613,20 @@ void xSendCANFunction(void *argument)
 void xCheckCommsFuncion(void *argument)
 {
   /* USER CODE BEGIN xCheckCommsFuncion */
+	/* This task monitors the heartbeat/communication state of all slaves (100Hz) */
 	static uint32_t atualTick = 0;
-  /* Infinite loop */
   for(;;)
   {
 	  atualTick = HAL_GetTick();
 
+	  /* Verify that each slave has sent data within the last 2 seconds */
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(atualTick - slaveLastMessageTicks[i] > 2000){
 			  tmsErrorCode |= commFault;
-			  Error_Handler();
+			  Error_Handler(); // Trigger Safety Shutdown on lost communication
 		  }
 	  }
-    osDelay(10); // Frequência de 100Hz para processamento CAN
+    osDelay(10); // Check frequency: 100Hz
   }
   /* USER CODE END xCheckCommsFuncion */
 }
@@ -620,35 +641,39 @@ void xCheckCommsFuncion(void *argument)
 void xReadTempFunction(void *argument)
 {
   /* USER CODE BEGIN xReadTempFunction */
+	/* This task simulates external ADC readings if simulateSlave is enabled */
 	static bool filtersInitialized = false;
 
-	/* Infinite loop */
 	for(;;)
 	{
 #ifdef simulateSlave
+		/* Initiate high-speed ADC sampling via DMA */
 		HAL_ADC_Start_DMA(&hadc1, (uint32_t *)rawAdcBuffer, numberOfThermistors);
 
+		/* Wait for DMA completion signal from ISR */
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
 		HAL_ADC_Stop_DMA(&hadc1);
 
+		/* Ensure DSP filter buffers are seeded on first run */
 		if (!filtersInitialized) {
 			initTemperatureFilters(rawAdcBuffer);
 			filtersInitialized = true;
 		}
 
+		/* Perform signal processing for all 16 simulated channels */
 		for (int i = 0; i < numberOfThermistors; i++) {
 
-			/* Etapa 1: Filtro de mediana (janela 3) — elimina spikes */
+			/* Step 1: Median Filter (Window 3) — Spikes elimination */
 			uint16_t medianADC = applyMedianFilter(rawAdcBuffer[i], i);
 
-			/* Etapa 2: Filtro IIR (alpha=1/8) — suaviza o sinal */
+			/* Step 2: IIR Filter (alpha=1/8) — Signal smoothing */
 			filteredAdcBuffer[i] = applyIIRFilter(medianADC, i);
 
-			/* Etapa 3: Diagnóstico de integridade do sensor */
+			/* Step 3: Diagnostic - verify NTC integrity (Open/Short) */
 			readStatus = checkThermistorConnection(filteredAdcBuffer[i]);
 
-			/* Etapa 4: Conversão e armazenamento (protegido por mutex) */
+			/* Step 4: Conversion to thermal units (Celsius) */
 			if(readStatus == OK){
 				if (osMutexAcquire(tempBufferMutexHandle, osWaitForever) == osOK) {
 					tempBuffer[i] = convertVoltageToTemperature(
@@ -657,14 +682,15 @@ void xReadTempFunction(void *argument)
 				}
 			}
 			else{
+				/* Critical Sensor Fault: Shut down immediately */
 				thermistorFault = 1;
 				sendReadingErrorInfoIntoCAN();
-				osDelay(5); // Garante que o hardware CAN transmita o erro antes de prosseguir
+				osDelay(5); // Ensure frame is queued before halt
 				Error_Handler();
 			}
 		}
 #endif
-		/* Aguarda 100ms antes da próxima leitura (taxa de aquisição: ~10 Hz) */
+		/* Sampling rate: 10Hz */
 		osDelay(100);
 	}
   /* USER CODE END xReadTempFunction */
