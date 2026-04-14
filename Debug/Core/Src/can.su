@@ -1,7 +1,7 @@
-../Core/Src/can.c:47:23:sendSingleFrame	32	static
-../Core/Src/can.c:75:6:processSlaveBurst	40	static
-../Core/Src/can.c:88:6:receiveCANFromSlaves	32	static
-../Core/Src/can.c:110:6:receiveCANFromGeral	12	static
-../Core/Src/can.c:115:6:sendMasterInfoToCAN	32	static
-../Core/Src/can.c:133:6:sendToSlavesCAN	32	static
-../Core/Src/can.c:151:6:simulateSlaveBurst	32	static
+../Core/Src/can.c:83:23:sendSingleFrame	32	static
+../Core/Src/can.c:113:6:processSlaveBurst	40	static
+../Core/Src/can.c:129:6:receiveCANFromSlaves	32	static
+../Core/Src/can.c:154:6:receiveCANFromGeral	24	static
+../Core/Src/can.c:190:6:sendMasterInfoToCAN	32	static
+../Core/Src/can.c:210:6:sendToSlavesCAN	32	static
+../Core/Src/can.c:229:6:simulateSlaveBurst	32	static

@@ -15,6 +15,7 @@
 #define overTemperatureFault 1<<1
 #define thermistorConnectionFault 1<<2
 #define masterCANFault 1<<3
+#define CANSplitterCANFault 1<<4
 
 #define maxTemperatureThreshold 55
 

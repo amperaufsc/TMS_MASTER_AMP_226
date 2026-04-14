@@ -51,7 +51,11 @@
 
 /* ================== CAN Identifiers (CAN2 - General) ============ */
 /** @brief Extended Identifier for Master status and telemetry (CAN2) */
-#define idMasterCAN2 0x19328082
+#define idMasterCAN2 0x19308082
+
+#define CANSplitterID1  0x15408081
+#define CANSplitterID2  0x15418081
+#define CANSplitterID3  0xD428081
 
 /* ================== Transmission Robustness Parameters ========= */
 /** @brief Maximum retries per CAN frame before dropping it (~20ms wait) */

@@ -10,6 +10,7 @@
 
 #include "can.h"
 #include <string.h>
+#include <stdbool.h>
 
 /* ==================== Extern Globals from main.c ===================== */
 extern FDCAN_HandleTypeDef hfdcan1;
@@ -24,6 +25,12 @@ extern uint8_t FDCAN2TxData[8];
 extern FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
 extern uint8_t FDCAN2RxData[8];
 extern FDCAN_RxHeaderTypeDef FDCAN2RxHeader;
+
+extern float bmsVoltage, bmsCurrent;
+extern float cellMaxVoltage, cellMinVoltage, cellAvgVoltage;
+extern uint32_t bmsProtectionFlags;
+extern bool bmsSafetyFlag;
+extern int bmsCANError, chargerSOC;
 
 /** @brief Composite error bitfield reflecting system state */
 volatile int tmsErrorCode = 0;
@@ -144,10 +151,40 @@ void receiveCANFromSlaves(){
 	}
 }
 
-void receiveCANFromGeral(){
-	/* Store latest raw message received on the general bus */
+void receiveCANFromGeral() {
+
 	lastRx2Msg.header = FDCAN2RxHeader;
 	memcpy(lastRx2Msg.data, FDCAN2RxData, 8);
+
+	uint32_t id = FDCAN2RxHeader.Identifier;
+
+	if (id == CANSplitterID3) {
+		bmsCANError = FDCAN2RxData[0];
+
+		if (bmsCANError != 0) {
+			tmsErrorCode |= CANSplitterCANFault;
+			Error_Handler();
+		}
+		return;
+	}
+
+	if (id == CANSplitterID1) {
+
+		memcpy(&bmsVoltage, &FDCAN2RxData[0], 4);
+		memcpy(&bmsCurrent, &FDCAN2RxData[4], 4);
+
+	}
+	else if (id == CANSplitterID2) {
+
+		memcpy(&bmsProtectionFlags, &FDCAN2RxData[0], 4);
+
+		cellMinVoltage = (float)FDCAN2RxData[4] / 50.0f;
+		cellMaxVoltage = (float)FDCAN2RxData[5] / 50.0f;
+		cellAvgVoltage = (float)FDCAN2RxData[6] / 50.0f;
+		chargerSOC = FDCAN2RxData[7];
+
+		bmsSafetyFlag = (bmsProtectionFlags != 0) ? true : false;
+	}
 }
 
 void sendMasterInfoToCAN(float *slaveMaxTemps, int error){

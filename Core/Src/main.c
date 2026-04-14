@@ -75,15 +75,15 @@ const osThreadAttr_t xReadTemp_attributes = {
 osMutexId_t tempBufferMutexHandle;
 const osMutexAttr_t tempBufferMutex_attributes = {.name = "tempBufferMutex"};
 
-extern uint8_t FDCAN1RxData[8]; //slaves
-extern FDCAN_RxHeaderTypeDef FDCAN1RxHeader;
-extern uint8_t FDCAN1TxData[8];
-extern FDCAN_TxHeaderTypeDef FDCAN1TxHeader;
+uint8_t FDCAN1RxData[8]; //slaves
+FDCAN_RxHeaderTypeDef FDCAN1RxHeader;
+uint8_t FDCAN1TxData[8];
+FDCAN_TxHeaderTypeDef FDCAN1TxHeader;
 
-extern uint8_t FDCAN2RxData[8]; //slaves
-extern FDCAN_RxHeaderTypeDef FDCAN2RxHeader;
-extern uint8_t FDCAN2TxData[8];
-extern FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
+uint8_t FDCAN2RxData[8]; //slaves
+FDCAN_RxHeaderTypeDef FDCAN2RxHeader;
+uint8_t FDCAN2TxData[8];
+FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
 
 CAN_RxMsg_t lastRx1Msg;
 CAN_TxStatus_t lastTx1Status = CAN_TX_OK;
@@ -101,7 +101,11 @@ uint32_t rawAdcBuffer[numberOfThermistors] = {0};
 extern uint16_t filteredAdcBuffer[numberOfThermistors];
 float voltageBuffer[numberOfThermistors] = {0}, tempBuffer[numberOfThermistors] = {0};
 
-
+float bmsVoltage, bmsCurrent;
+float cellMaxVoltage, cellMinVoltage, cellAvgVoltage;
+uint32_t bmsProtectionFlags;
+bool bmsSafetyFlag;
+int bmsCANError, chargerSOC;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -522,7 +526,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	if (hfdcan->Instance == FDCAN1) {
 		if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != RESET) {
 			/* Retrieve message from hardware FIFO */
-			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO_0, &FDCAN1RxHeader,
+			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &FDCAN1RxHeader,
 					FDCAN1RxData) == HAL_OK) {
 				receiveCANFromSlaves(); // Process slave data immediately
 			}
@@ -538,7 +542,7 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 	if (hfdcan->Instance == FDCAN2) {
 		if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) != RESET) {
 			/* Retrieve message from hardware FIFO */
-			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO_1, &FDCAN2RxHeader,
+			if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &FDCAN2RxHeader,
 					FDCAN2RxData) == HAL_OK) {
 				receiveCANFromGeral(); // Update global telemetry state
 			}
@@ -623,7 +627,7 @@ void xCheckCommsFuncion(void *argument)
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(atualTick - slaveLastMessageTicks[i] > 2000){
 			  tmsErrorCode |= commFault;
-			  Error_Handler(); // Trigger Safety Shutdown on lost communication
+//			  Error_Handler(); // Trigger Safety Shutdown on lost communication
 		  }
 	  }
     osDelay(10); // Check frequency: 100Hz
