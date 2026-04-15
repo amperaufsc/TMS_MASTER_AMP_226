@@ -1,0 +1,6 @@
+../Core/Src/bms_temp_est.c:46:6:bmsTempEstInit	3
+../Core/Src/bms_temp_est.c:71:6:bmsTempEstSetSoc	2
+../Core/Src/bms_temp_est.c:81:13:getArrheniusParams	4
+../Core/Src/bms_temp_est.c:105:6:bmsTempEstFeedSample	14
+../Core/Src/bms_temp_est.c:187:6:bmsTempEstIsValid	2
+../Core/Src/bms_temp_est.c:196:7:bmsTempEstGetTemp	2

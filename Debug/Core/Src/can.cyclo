@@ -5,3 +5,4 @@
 ../Core/Src/can.c:190:6:sendMasterInfoToCAN	4
 ../Core/Src/can.c:210:6:sendToSlavesCAN	4
 ../Core/Src/can.c:229:6:simulateSlaveBurst	1
+../Core/Src/can.c:236:6:simulateInverterBurst	4

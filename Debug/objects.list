@@ -1,5 +1,6 @@
 "./Core/Src/adc.o"
 "./Core/Src/app_freertos.o"
+"./Core/Src/bms_temp_est.o"
 "./Core/Src/can.o"
 "./Core/Src/errors.o"
 "./Core/Src/main.o"

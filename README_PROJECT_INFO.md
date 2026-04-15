@@ -55,6 +55,28 @@ The firmware includes built-in simulation tools for development without physical
   - `simulateHighTemp`: Triggers an artificial 100°C fault.
   - `simulateCommLoss`: Triggers a communication timeout fault.
 
+## 5. Internal Temperature Estimation (Pulse Resistance)
+
+The Master Unit now features a real-time Internal Temperature Estimator based on the Ohmic Resistance ($R_{DC}$) of the cells. Unlike standard NTC thermistors which measure the surface of the cell, this algorithm accurately predicts the core (jelly roll) temperature by measuring the instantaneous voltage drop during current transients (e.g., rapid acceleration or regeneration).
+
+### Algorithm Flow (`bms_temp_est.c`)
+1. **Edge Detection**: Monitors `bmsCurrent`. If the transient exceeds `DELTA_I_THRESHOLD` (5.0A), a timer is started.
+2. **Pulse Evaluation**: After a delay of `PULSE_WAIT_MS` (150ms), the instantaneous voltage drop ($\Delta U$) across the pack is recorded.
+3. **Arrhenius Mapping**: The algorithm calculates $R_{DC} = \Delta U / \Delta I$ and mathematically inverts the Arrhenius equation to extract temperature using parameters calibrated specifically for the targeted SOC.
+4. **Moving Average**: A rolling window filter stabilizes the final output (`estimatedTempC`).
+
+### Python Calibration (`calibrate.py`)
+To map raw lab resistances into the micro-controller logic, a standalone Python script evaluates points from the **Molicel P28A** cell at 5°C, 25°C, and 40°C. Using the Bisection Method, the script reverse-engineers the following variables for all 9 State of Charge (SOC) breakpoints:
+- **$R_0$**: Fixed metallic contact offsets.
+- **$R_1$**: Pre-exponential factor scaling.
+- **$E_a$**: Activation energy mapping the lithium ion sluggishness curve.
+*Note: The generated C-arrays are already hardcoded, but the script remains in the repository for future battery models.*
+
+### References 📚
+The theoretical framework and physical cell parameters implemented in this module were derived from the following academic research:
+1. **Pulse Resistance Method**: Ludwig, S.; Steinhardt, M.; Jossen, A. *"Determination of Internal Temperature Differences for Various Cylindrical Lithium-Ion Batteries Using a Pulse Resistance Approach"* — MDPI Batteries, 2022, 8(7), 60.
+2. **Molicel P28A Characterization**: Dalla Palma, F. et al. *"Holistic Testing and Characterization of Commercial 18650 Lithium-Ion Cells"* — MDPI Batteries 2024, 10(7), 248.
+
 ---
 **Author**: Guilherme Lettmann  
-**Version**: 1.0 (Callback-based FDCAN Architecture)
+**Version**: 1.1 (Includes Active Internal Temp Estimator & Loopback Test Mocks)

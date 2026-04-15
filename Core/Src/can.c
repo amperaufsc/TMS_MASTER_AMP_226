@@ -232,3 +232,48 @@ void simulateSlaveBurst(uint8_t slaveIdx, uint8_t burstIdx){
 	uint32_t simulatedId = slaveBurstBaseId[slaveIdx] + burstIdx;
 	sendToSlavesCAN(simulatedId, fakeData, 8);
 }
+
+void simulateInverterBurst(void){
+	/* Helper loopback function to generate artificial BMS/Estimator inputs */
+	static uint32_t lastPulseTime = 0;
+	static float simCurrent = 0.0f;
+	/* Pack Real: 168V Max, 144V Nom (~40 Celulas em serie).
+	 * Em repouso simularemos 144.0V (que dá 3.6V/celula). */
+	static float packVolt = 144.0f; 
+	static uint8_t simAvgCellV_byte = 180; // 3.6V * 50 = 180
+
+	uint32_t now = HAL_GetTick();
+
+	/* A cada 3000 ms, simula uma batida forte no acelerador */
+	if(now - lastPulseTime > 3000){
+		simCurrent = 40.0f; // Pulso de 40A
+		/* Simulando queda (sag) do pack de 144V para ~128V durante o susto */
+		packVolt = 128.0f; 
+		simAvgCellV_byte = 160; // (3.2V * 50) = 160
+		lastPulseTime = now;
+	} else if(simCurrent > 0.0f && (now - lastPulseTime > 500)){
+		/* Depois de 500ms (duração do pulso), alivia o acelerador e volta pro Nominal */
+		simCurrent = 0.0f;
+		packVolt = 144.0f;
+		simAvgCellV_byte = 180;
+	}
+
+	/* Pacote CANSplitterID1 (Tensões Pack e Corrente) */
+	FDCAN2TxHeader.Identifier = CANSplitterID1;
+	FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
+	FDCAN2TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+
+	memcpy(&FDCAN2TxData[0], &packVolt, 4);
+	memcpy(&FDCAN2TxData[4], &simCurrent, 4);
+	sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
+
+	/* Pacote CANSplitterID2 (Celulas Avg e SOC) */
+	FDCAN2TxHeader.Identifier = CANSplitterID2;
+	uint32_t fakeFlags = 0;
+	memcpy(&FDCAN2TxData[0], &fakeFlags, 4);
+	FDCAN2TxData[4] = simAvgCellV_byte; // Min
+	FDCAN2TxData[5] = simAvgCellV_byte; // Max
+	FDCAN2TxData[6] = simAvgCellV_byte; // Avg
+	FDCAN2TxData[7] = 50; // SOC fixo 50%
+	sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
+}

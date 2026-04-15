@@ -26,6 +26,7 @@
 #include "errors.h"
 #include "adc.h"
 #include <stdbool.h>
+#include "bms_temp_est.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -106,6 +107,7 @@ float cellMaxVoltage, cellMinVoltage, cellAvgVoltage;
 uint32_t bmsProtectionFlags;
 bool bmsSafetyFlag;
 int bmsCANError, chargerSOC;
+bmsTempEstState internalTempEstimator;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -164,6 +166,7 @@ int main(void)
   MX_FDCAN2_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  bmsTempEstInit(&internalTempEstimator);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -589,6 +592,11 @@ void xSendCANFunction(void *argument)
 	  simulateSlaveBurst(0, 0);
 #endif
 
+#ifdef testLoopbackCAN2
+	  /* Generate artificial inverter traffic if loopback testing is enabled */
+	  simulateInverterBurst();
+#endif
+
 	  /* Inject simulated faults if global debug flags are set */
 	  injectFault(&maxTemps[0]);
 
@@ -617,11 +625,26 @@ void xSendCANFunction(void *argument)
 void xCheckCommsFuncion(void *argument)
 {
   /* USER CODE BEGIN xCheckCommsFuncion */
-	/* This task monitors the heartbeat/communication state of all slaves (100Hz) */
+	/* This task monitors the heartbeat/communication state of all slaves (100Hz)
+     * e também atua como base de tempo rápida para estimar a Temperatura Interna. */
 	static uint32_t atualTick = 0;
   for(;;)
   {
 	  atualTick = HAL_GetTick();
+
+	  /* Atualiza o SOC em base decimal (0.0 a 1.0) usando o dado numérico bruto (ex: 0 a 100%) */
+	  // Usa clamp logico entre 0.0 e 1.0
+	  float s_soc = ((float)chargerSOC) / 100.0f;
+	  if(s_soc < 0.0f) s_soc = 0.0f;
+	  if(s_soc > 1.0f) s_soc = 1.0f;
+	  bmsTempEstSetSoc(&internalTempEstimator, s_soc);
+
+	  /* Alimenta o algoritmo (espera Tensao da Celula e Corrente da Célula) 
+	   * O Pack da Ampera 226 possui 8 paralelos. O bmsCurrent global precisa ser 
+	   * fracionado (bmsCurrent / 8.0f) para o estimador processar a calibração de uma célula unitária P28A.
+	   */
+	  float cellCurrent = bmsCurrent / 8.0f;
+	  bmsTempEstFeedSample(&internalTempEstimator, cellCurrent, cellAvgVoltage);
 
 	  /* Verify that each slave has sent data within the last 2 seconds */
 	  for(int i = 0; i < numberOfSlaves; i++){

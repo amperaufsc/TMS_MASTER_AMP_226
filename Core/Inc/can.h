@@ -115,6 +115,11 @@ void sendToSlavesCAN(uint32_t id, uint8_t *data, uint32_t len);
  */
 void simulateSlaveBurst(uint8_t slaveIdx, uint8_t burstIdx);
 
+/**
+ * @brief Simulates inverter data transmission for loopback testing.
+ */
+void simulateInverterBurst(void);
+
 /* ============= CAN RX Message structure for Queuing/Monitoring ============= */
 typedef struct {
 	FDCAN_RxHeaderTypeDef header;   /**< HAL Header containing ID, DLC, and state */
