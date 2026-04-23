@@ -1,2 +1,2 @@
-../Core/Src/errors.c:23:5:findMaxVal	3
+../Core/Src/errors.c:23:5:findMaxVal	1
 ../Core/Src/errors.c:34:6:injectFault	3

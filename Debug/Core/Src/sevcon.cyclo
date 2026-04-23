@@ -1,0 +1,8 @@
+../Core/Src/sevcon.c:19:17:build_j1939_id	1
+../Core/Src/sevcon.c:31:16:calc_checksum	2
+../Core/Src/sevcon.c:42:6:Sevcon_InitDemands	2
+../Core/Src/sevcon.c:65:6:Sevcon_Send_HC1	1
+../Core/Src/sevcon.c:103:6:Sevcon_Send_HC2	1
+../Core/Src/sevcon.c:137:6:Sevcon_Send_HC3	1
+../Core/Src/sevcon.c:173:6:Sevcon_ParseStatus	11
+../Core/Src/sevcon.c:220:6:Sevcon_RunStateMachine	14

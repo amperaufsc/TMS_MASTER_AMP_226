@@ -1,8 +1,8 @@
-../Core/Src/can.c:83:23:sendSingleFrame	6
-../Core/Src/can.c:113:6:processSlaveBurst	1
-../Core/Src/can.c:129:6:receiveCANFromSlaves	6
-../Core/Src/can.c:154:6:receiveCANFromGeral	5
-../Core/Src/can.c:190:6:sendMasterInfoToCAN	4
-../Core/Src/can.c:210:6:sendToSlavesCAN	4
-../Core/Src/can.c:229:6:simulateSlaveBurst	1
-../Core/Src/can.c:236:6:simulateInverterBurst	4
+../Core/Src/can.c:69:23:sendSingleFrame	4
+../Core/Src/can.c:90:6:processSlaveBurst	1
+../Core/Src/can.c:106:6:receiveCANFromSlaves	1
+../Core/Src/can.c:131:6:receiveCANFromGeral	10
+../Core/Src/can.c:181:6:sendMasterInfoToCAN	3
+../Core/Src/can.c:201:6:sendToSlavesCAN	4
+../Core/Src/can.c:220:6:simulateSlaveBurst	1
+../Core/Src/can.c:227:6:simulateInverterBurst	5

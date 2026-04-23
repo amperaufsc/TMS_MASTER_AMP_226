@@ -19,13 +19,13 @@
 
 /* ================== Test Modes & Debug Macros ================== */
 /** @brief Enable to simulate CAN1 Slave traffic via internal loopback */
-//#define testLoopbackCAN1
+#define testLoopbackCAN1
 /** @brief Enable to simulate CAN2 Master traffic via internal loopback */
-//#define testLoopbackCAN2
+#define testLoopbackCAN2
 
 /* ================== System Configuration ======================= */
 /** @brief Number of Slave modules connected to the CAN1 network */
-#define numberOfSlaves 1
+#define numberOfSlaves 0
 
 /* ================== CAN Identifiers (CAN1 - Slaves) ============= */
 /** @brief Identifier for messages sent by the Master on CAN1 */
@@ -56,6 +56,11 @@
 #define CANSplitterID1  0x15408081
 #define CANSplitterID2  0x15418081
 #define CANSplitterID3  0xD428081
+#define CANSplitterID4  0x15438081
+#define CANSplitterID5  0x15448081
+#define CANSplitterID6  0x15458081
+#define CANSplitterID7  0x15468081
+#define CANSplitterID8  0x15478081
 
 /* ================== Transmission Robustness Parameters ========= */
 /** @brief Maximum retries per CAN frame before dropping it (~20ms wait) */

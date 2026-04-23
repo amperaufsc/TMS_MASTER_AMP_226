@@ -16,10 +16,12 @@
 #define thermistorConnectionFault 1<<2
 #define masterCANFault 1<<3
 #define CANSplitterCANFault 1<<4
+#define overTemperatureFaultEst 1<<5
 
-#define maxTemperatureThreshold 55
+#define maxTemperatureThresholdNTC 55
+#define maxTemperatureThresholdEst 60
 
-#define thermistorsPerSlave 16
+#define thermistorsPerSlave 0
 #define thermistorsRecieved thermistorsPerSlave
 
 int findMaxVal(const float *buffer);

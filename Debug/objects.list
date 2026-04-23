@@ -4,6 +4,7 @@
 "./Core/Src/can.o"
 "./Core/Src/errors.o"
 "./Core/Src/main.o"
+"./Core/Src/sevcon.o"
 "./Core/Src/stm32g4xx_hal_msp.o"
 "./Core/Src/stm32g4xx_it.o"
 "./Core/Src/syscalls.o"

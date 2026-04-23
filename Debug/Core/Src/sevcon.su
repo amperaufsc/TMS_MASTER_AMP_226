@@ -1,0 +1,8 @@
+../Core/Src/sevcon.c:19:17:build_j1939_id	24	static
+../Core/Src/sevcon.c:31:16:calc_checksum	24	static
+../Core/Src/sevcon.c:42:6:Sevcon_InitDemands	16	static
+../Core/Src/sevcon.c:65:6:Sevcon_Send_HC1	80	static
+../Core/Src/sevcon.c:103:6:Sevcon_Send_HC2	72	static
+../Core/Src/sevcon.c:137:6:Sevcon_Send_HC3	72	static
+../Core/Src/sevcon.c:173:6:Sevcon_ParseStatus	32	static
+../Core/Src/sevcon.c:220:6:Sevcon_RunStateMachine	16	static

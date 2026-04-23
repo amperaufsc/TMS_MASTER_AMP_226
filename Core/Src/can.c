@@ -1,16 +1,12 @@
 /**
  * @file can.c
  * @brief Logic for CAN transmission, reception, and safety monitoring.
- *
- * This module manages:
- * - Direct processing of CAN messages within ISR callbacks (low latency).
- * - Robust transmission mechanism with retry and safety-threshold tracking.
- * - Buffer management for slave temperature data.
  */
 
 #include "can.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h> // Para rand()
 
 /* ==================== Extern Globals from main.c ===================== */
 extern FDCAN_HandleTypeDef hfdcan1;
@@ -37,6 +33,8 @@ volatile int tmsErrorCode = 0;
 
 /** @brief Global buffer storing the latest temperatures from all slaves */
 float slaveTempBuffers[numberOfSlaves][thermistorsRecieved] = {0};
+
+extern float emusCellVolts[40];
 
 /** @brief Timestamps of the last received message from each slave (for timeout detection) */
 uint32_t slaveLastMessageTicks[numberOfSlaves] = {0};
@@ -67,29 +65,8 @@ uint32_t slaveErrorIds[4] = {
 
 /**
  * @brief Centralized function for single frame transmission with retry and safety monitoring.
- *
- * Flow:
- * 1. Checks if the peripheral state is operational.
- * 2. Attempts to add the message to the TX FIFO.
- * 3. On failure (FIFO full), waits 1ms and retries up to CAN_TX_RETRY_MAX times.
- * 4. Tracks 'canConsecutiveFailures'. If the limit is reached, it returns FATAL.
- * 5. On any success, the failure counter is reset.
- *
- * @param hfdcan Peripheral handle (FDCAN1 or FDCAN2).
- * @param pHeader CAN header (Standard or Extended).
- * @param pData Data payload.
- * @return CAN_TxStatus_t OK, FAIL (one frame dropped), or FATAL (Safety Shutdown).
  */
 static CAN_TxStatus_t sendSingleFrame(FDCAN_HandleTypeDef *hfdcan, FDCAN_TxHeaderTypeDef *pHeader, uint8_t *pData){
-	if (hfdcan->State != HAL_FDCAN_STATE_BUSY)
-	{
-		canConsecutiveFailures++;
-		if (canConsecutiveFailures >= CAN_TX_FAULT_THRESHOLD) {
-			return CAN_TX_FATAL;
-		}
-		return CAN_TX_FAIL;
-	}
-
 	uint8_t retry = 0;
 	while (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, pHeader, pData) != HAL_OK)
 	{
@@ -169,21 +146,35 @@ void receiveCANFromGeral() {
 	}
 
 	if (id == CANSplitterID1) {
-
 		memcpy(&bmsVoltage, &FDCAN2RxData[0], 4);
 		memcpy(&bmsCurrent, &FDCAN2RxData[4], 4);
-
 	}
 	else if (id == CANSplitterID2) {
-
 		memcpy(&bmsProtectionFlags, &FDCAN2RxData[0], 4);
 
-		cellMinVoltage = (float)FDCAN2RxData[4] / 50.0f;
-		cellMaxVoltage = (float)FDCAN2RxData[5] / 50.0f;
-		cellAvgVoltage = (float)FDCAN2RxData[6] / 50.0f;
+		// Escala corrigida para novo padrão consolidado: Tensão = (Dado / 100) + 2.0V
+		cellMinVoltage = ((float)FDCAN2RxData[4] / 100.0f) + 2.0f;
+		cellMaxVoltage = ((float)FDCAN2RxData[5] / 100.0f) + 2.0f;
+		cellAvgVoltage = ((float)FDCAN2RxData[6] / 100.0f) + 2.0f;
 		chargerSOC = FDCAN2RxData[7];
 
 		bmsSafetyFlag = (bmsProtectionFlags != 0) ? true : false;
+	}
+	else if (id >= CANSplitterID4 && id <= CANSplitterID8) {
+		// Os IDs variam no nibble superior: 0x15438081, 0x15448081... 
+		// Subtrair diretamente causa erro de escala. Extraímos o dígito correto:
+		uint8_t groupIndex = (id >> 16) & 0x0F; 
+		if (groupIndex >= 3) {
+			groupIndex -= 3; // 3, 4, 5, 6, 7 -> 0, 1, 2, 3, 4
+			uint8_t startIndex = groupIndex * 8;
+
+			for(int i = 0; i < 8; i++){
+				if (startIndex + i < 40) {
+					// Reverte O Scale do CAN: Tensão = (Dado / 100) + 2.0V
+					emusCellVolts[startIndex + i] = ((float)FDCAN2RxData[i] / 100.0f) + 2.0f;
+				}
+			}
+		}
 	}
 }
 
@@ -194,8 +185,8 @@ void sendMasterInfoToCAN(float *slaveMaxTemps, int error){
 
 	FDCAN2TxData[0] = error;
 
-	/* Pack max temperatures from the first 4 slaves */
-	for(int i = 0; i < 4 && i < numberOfSlaves; i++){
+	/* Pack max temperatures from the 4 estimated logical modules */
+	for(int i = 0; i < 4; i++){
 		FDCAN2TxData[i+1] = (uint8_t)slaveMaxTemps[i];
 	}
 
@@ -237,43 +228,48 @@ void simulateInverterBurst(void){
 	/* Helper loopback function to generate artificial BMS/Estimator inputs */
 	static uint32_t lastPulseTime = 0;
 	static float simCurrent = 0.0f;
-	/* Pack Real: 168V Max, 144V Nom (~40 Celulas em serie).
-	 * Em repouso simularemos 144.0V (que dá 3.6V/celula). */
 	static float packVolt = 144.0f; 
-	static uint8_t simAvgCellV_byte = 180; // 3.6V * 50 = 180
+	static uint8_t simAvgCellV_byte = 160; 
 
 	uint32_t now = HAL_GetTick();
 
-	/* A cada 3000 ms, simula uma batida forte no acelerador */
 	if(now - lastPulseTime > 3000){
-		simCurrent = 40.0f; // Pulso de 40A
-		/* Simulando queda (sag) do pack de 144V para ~128V durante o susto */
-		packVolt = 128.0f; 
-		simAvgCellV_byte = 160; // (3.2V * 50) = 160
+		simCurrent = 40.0f; 
+		packVolt = 140.6f; 
+		// Adiciona um pequeno ruído (+/- 1 bit) para o valor variar no Live Expressions
+		simAvgCellV_byte = 150 + (rand() % 3); 
 		lastPulseTime = now;
-	} else if(simCurrent > 0.0f && (now - lastPulseTime > 500)){
-		/* Depois de 500ms (duração do pulso), alivia o acelerador e volta pro Nominal */
+	} else if(simCurrent > 0.0f && (now - lastPulseTime > 2000)){
 		simCurrent = 0.0f;
 		packVolt = 144.0f;
-		simAvgCellV_byte = 180;
+		simAvgCellV_byte = 160;
 	}
 
-	/* Pacote CANSplitterID1 (Tensões Pack e Corrente) */
-	FDCAN2TxHeader.Identifier = CANSplitterID1;
 	FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
 	FDCAN2TxHeader.DataLength = FDCAN_DLC_BYTES_8;
 
+	// 1. Pack info
+	FDCAN2TxHeader.Identifier = CANSplitterID1;
 	memcpy(&FDCAN2TxData[0], &packVolt, 4);
 	memcpy(&FDCAN2TxData[4], &simCurrent, 4);
 	sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
 
-	/* Pacote CANSplitterID2 (Celulas Avg e SOC) */
+	// 2. SOC info
 	FDCAN2TxHeader.Identifier = CANSplitterID2;
 	uint32_t fakeFlags = 0;
 	memcpy(&FDCAN2TxData[0], &fakeFlags, 4);
-	FDCAN2TxData[4] = simAvgCellV_byte; // Min
-	FDCAN2TxData[5] = simAvgCellV_byte; // Max
-	FDCAN2TxData[6] = simAvgCellV_byte; // Avg
-	FDCAN2TxData[7] = 50; // SOC fixo 50%
+	FDCAN2TxData[4] = simAvgCellV_byte;
+	FDCAN2TxData[5] = simAvgCellV_byte;
+	FDCAN2TxData[6] = simAvgCellV_byte;
+	FDCAN2TxData[7] = 50;
 	sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
+
+	// 3. Cell IDs
+	uint32_t cellIDs[5] = {CANSplitterID4, CANSplitterID5, CANSplitterID6, CANSplitterID7, CANSplitterID8};
+	uint8_t cellData[8];
+	memset(cellData, simAvgCellV_byte, 8);
+	for(int i = 0; i < 5; i++) {
+		FDCAN2TxHeader.Identifier = cellIDs[i];
+		sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, cellData);
+	}
 }

@@ -107,7 +107,9 @@ float cellMaxVoltage, cellMinVoltage, cellAvgVoltage;
 uint32_t bmsProtectionFlags;
 bool bmsSafetyFlag;
 int bmsCANError, chargerSOC;
-bmsTempEstState internalTempEstimator;
+bmsTempEstState cellTempEstimators[40];
+float debugEstimatedTemps[40] = {0};
+float emusCellVolts[40] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -166,7 +168,9 @@ int main(void)
   MX_FDCAN2_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  bmsTempEstInit(&internalTempEstimator);
+  for (int c = 0; c < 40; c++) {
+      bmsTempEstInit(&cellTempEstimators[c]);
+  }
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -576,16 +580,60 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 void xSendCANFunction(void *argument)
 {
   /* USER CODE BEGIN 5 */
+  static uint8_t estOvertempCounter = 0;
+  
   /* This task manages periodic status transmission and fault checking (10Hz) */
   for(;;)
   {
-	  float maxTemps[numberOfSlaves] = {0};
-	  for(int i = 0; i < numberOfSlaves; i++){
-		  maxTemps[i] = findMaxVal(slaveTempBuffers[i]);
+	  float maxSentTemps[4] = {0};
+	  bool anyEstOvertempThisCycle = false;
+	  
+	  for(int m = 0; m < 4; m++){
+		  float ntc_max = 0.0f;
+		  // Coleta temperatura max física lida do slave caso ele exista
+		  if(m < numberOfSlaves){
+		  	  ntc_max = findMaxVal(slaveTempBuffers[m]);
+		  }
+		  // Coleta a estimada via Arrhenius-R_DC (Pega a pior dentre as 10 células do módulo)
+		  float est_module_max = 0.0f;
+		  for(int subCell = 0; subCell < 10; subCell++){
+		      int c_idx = (m * 10) + subCell;
+		      if (bmsTempEstIsValid(&cellTempEstimators[c_idx])) {
+			      float cTemp = bmsTempEstGetTemp(&cellTempEstimators[c_idx]);
+			      if (cTemp > est_module_max) {
+			          est_module_max = cTemp;
+			      }
+		      }
+		  }
+		  
+		  // Funde as temperaturas extraindo a pior possível daquele módulo
+		  maxSentTemps[m] = fmaxf(ntc_max, est_module_max);
+
+		  // Verificação Isolada de Over-Temperature - NTC dispara instantaneamente
+		  if(ntc_max > maxTemperatureThresholdNTC) {
+			  tmsErrorCode |= overTemperatureFault;
+//			  Error_Handler(); // Trigger Safety Shutdown
+		  }
+		  
+		  // Levanta a flag temporária se a estimada violar o teto neste pulso
+		  if(est_module_max > maxTemperatureThresholdEst) {
+		      anyEstOvertempThisCycle = true;
+		  }
 	  }
 
+	  // Avalia o debounce (Filtro contra falsas medições estocásticas do logaritmo)
+	  if(anyEstOvertempThisCycle) {
+          estOvertempCounter++;
+          if (estOvertempCounter >= 10) { // Persistiu quente por mais de 10 leituras contínuas (1 segundo)
+              tmsErrorCode |= overTemperatureFaultEst;
+              Error_Handler(); // Trigger Safety Shutdown
+          }
+      } else {
+          estOvertempCounter = 0; // Se a anomalia esfriar/desaparecer antes de 1s, zera o contador
+      }
+
 	  /* Send Master status and maximum temperatures to CAN2 */
-	  sendMasterInfoToCAN(maxTemps, tmsErrorCode);
+	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);
 
 #ifdef testLoopbackCAN1
 	  /* Generate artificial slave traffic if loopback testing is enabled */
@@ -598,15 +646,7 @@ void xSendCANFunction(void *argument)
 #endif
 
 	  /* Inject simulated faults if global debug flags are set */
-	  injectFault(&maxTemps[0]);
-
-	  /* Check for Over-Temperature faults */
-	  for(int i = 0; i < numberOfSlaves; i++){
-		  if(maxTemps[i] > maxTemperatureThreshold){
-			  tmsErrorCode |= overTemperatureFault;
-			  Error_Handler(); // Trigger Safety Shutdown
-		  }
-	  }
+	  injectFault(&maxSentTemps[0]);
 
 	  /* Visual heartbeat for OS health */
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
@@ -637,14 +677,32 @@ void xCheckCommsFuncion(void *argument)
 	  float s_soc = ((float)chargerSOC) / 100.0f;
 	  if(s_soc < 0.0f) s_soc = 0.0f;
 	  if(s_soc > 1.0f) s_soc = 1.0f;
-	  bmsTempEstSetSoc(&internalTempEstimator, s_soc);
+	  
+	  for(int c = 0; c < 40; c++){
+		  bmsTempEstSetSoc(&cellTempEstimators[c], s_soc);
+	  }
 
 	  /* Alimenta o algoritmo (espera Tensao da Celula e Corrente da Célula) 
 	   * O Pack da Ampera 226 possui 8 paralelos. O bmsCurrent global precisa ser 
 	   * fracionado (bmsCurrent / 8.0f) para o estimador processar a calibração de uma célula unitária P28A.
 	   */
 	  float cellCurrent = bmsCurrent / 8.0f;
-	  bmsTempEstFeedSample(&internalTempEstimator, cellCurrent, cellAvgVoltage);
+	  
+	  /* Passa as 40 voltagens individuais pros 40 estimadores térmicos e salva pro Live Expressions */
+	  for(int c = 0; c < 40; c++){
+		  float cellVolt = emusCellVolts[c];
+		  
+		  // Filtro profilático, não injeta zero-volts
+		  if(cellVolt > 1.0f) { 
+		      bmsTempEstFeedSample(&cellTempEstimators[c], cellCurrent, cellVolt);
+		  }
+		  
+		  if(bmsTempEstIsValid(&cellTempEstimators[c])) {
+		      debugEstimatedTemps[c] = bmsTempEstGetTemp(&cellTempEstimators[c]);
+		  } else {
+		      debugEstimatedTemps[c] = 25.0f; // Mock warm state
+		  }
+	  }
 
 	  /* Verify that each slave has sent data within the last 2 seconds */
 	  for(int i = 0; i < numberOfSlaves; i++){
