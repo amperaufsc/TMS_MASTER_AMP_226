@@ -55,12 +55,12 @@
 
 #define CANSplitterID1  0x15408081
 #define CANSplitterID2  0x15418081
-#define CANSplitterID3  0xD428081
-#define CANSplitterID4  0x15438081
-#define CANSplitterID5  0x15448081
-#define CANSplitterID6  0x15458081
-#define CANSplitterID7  0x15468081
-#define CANSplitterID8  0x15478081
+#define CANSplitterID3  0x0D428081
+#define CANSplitterID4  0x15438281
+#define CANSplitterID5  0x15448281
+#define CANSplitterID6  0x15458281
+#define CANSplitterID7  0x15468281
+#define CANSplitterID8  0x15478281
 
 /* ================== Transmission Robustness Parameters ========= */
 /** @brief Maximum retries per CAN frame before dropping it (~20ms wait) */
