@@ -21,7 +21,7 @@
 #define maxTemperatureThresholdNTC 55
 #define maxTemperatureThresholdEst 60
 
-#define thermistorsPerSlave 0
+#define thermistorsPerSlave 16
 #define thermistorsRecieved thermistorsPerSlave
 
 int findMaxVal(const float *buffer);

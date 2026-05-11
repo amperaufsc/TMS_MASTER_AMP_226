@@ -19,13 +19,13 @@
 
 /* ================== Test Modes & Debug Macros ================== */
 /** @brief Enable to simulate CAN1 Slave traffic via internal loopback */
-#define testLoopbackCAN1
+//#define testLoopbackCAN1
 /** @brief Enable to simulate CAN2 Master traffic via internal loopback */
-#define testLoopbackCAN2
+//#define testLoopbackCAN2
 
 /* ================== System Configuration ======================= */
 /** @brief Number of Slave modules connected to the CAN1 network */
-#define numberOfSlaves 0
+#define numberOfSlaves 4
 
 /* ================== CAN Identifiers (CAN1 - Slaves) ============= */
 /** @brief Identifier for messages sent by the Master on CAN1 */
@@ -76,6 +76,10 @@ typedef enum {
 	CAN_TX_FAIL,         /**< Frame dropped after retries (system remains active) */
 	CAN_TX_FATAL         /**< Safety threshold reached: SDC Shutdown will be triggered */
 } CAN_TxStatus_t;
+
+/* ================== Exported State ============================= */
+extern bool     slaveOnline[numberOfSlaves];
+extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 
 /* ================== Function Prototypes ======================== */
 

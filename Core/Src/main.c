@@ -590,8 +590,8 @@ void xSendCANFunction(void *argument)
 	  
 	  for(int m = 0; m < 4; m++){
 		  float ntc_max = 0.0f;
-		  // Coleta temperatura max física lida do slave caso ele exista
-		  if(m < numberOfSlaves){
+		  // Coleta temperatura max física lida do slave caso ele exista e esteja online
+		  if(m < numberOfSlaves && slaveOnline[m]){
 		  	  ntc_max = findMaxVal(slaveTempBuffers[m]);
 		  }
 		  // Coleta a estimada via Arrhenius-R_DC (Pega a pior dentre as 10 células do módulo)
@@ -705,10 +705,11 @@ void xCheckCommsFuncion(void *argument)
 	  }
 
 	  /* Verify that each slave has sent data within the last 2 seconds */
+	  tmsErrorCode &= ~commFault;
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(atualTick - slaveLastMessageTicks[i] > 2000){
+			  slaveOnline[i] = false;
 			  tmsErrorCode |= commFault;
-//			  Error_Handler(); // Trigger Safety Shutdown on lost communication
 		  }
 	  }
     osDelay(10); // Check frequency: 100Hz

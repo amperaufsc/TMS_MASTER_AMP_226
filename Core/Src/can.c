@@ -39,6 +39,9 @@ extern float emusCellVolts[40];
 /** @brief Timestamps of the last received message from each slave (for timeout detection) */
 uint32_t slaveLastMessageTicks[numberOfSlaves] = {0};
 
+/** @brief Online status per slave — false if no message received within timeout */
+bool slaveOnline[numberOfSlaves] = {false};
+
 /** @brief Latest raw messages for debugging and telemetry monitoring */
 extern CAN_RxMsg_t lastRx1Msg;
 extern CAN_RxMsg_t lastRx2Msg;
@@ -101,6 +104,7 @@ void processSlaveBurst(uint8_t slave, uint8_t burst){
 
 	/* Record timestamp for heartbeat/communication loss monitoring */
 	slaveLastMessageTicks[slave] = HAL_GetTick();
+	slaveOnline[slave] = true;
 }
 
 void receiveCANFromSlaves(){
