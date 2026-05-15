@@ -13,6 +13,7 @@
 #ifndef INC_CAN_H_
 #define INC_CAN_H_
 
+#include <stdbool.h>
 #include "errors.h"
 #include "main.h"
 #include "adc.h"

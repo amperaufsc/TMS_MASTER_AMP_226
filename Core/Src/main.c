@@ -27,6 +27,7 @@
 #include "adc.h"
 #include <stdbool.h>
 #include "bms_temp_est.h"
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
