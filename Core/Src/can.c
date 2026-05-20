@@ -17,8 +17,8 @@ extern FDCAN_RxHeaderTypeDef FDCAN1RxHeader;
 extern uint8_t FDCAN1TxData[8];
 extern FDCAN_TxHeaderTypeDef FDCAN1TxHeader;
 
-extern uint8_t FDCAN2TxData[8];
-extern FDCAN_TxHeaderTypeDef FDCAN2TxHeader;
+/* CAN2 TX globals (FDCAN2TxData / FDCAN2TxHeader) intentionally NOT externed:
+ * every TX site builds local header + payload — see initCan2TxHeader(). */
 extern uint8_t FDCAN2RxData[8];
 extern FDCAN_RxHeaderTypeDef FDCAN2RxHeader;
 
@@ -49,6 +49,32 @@ extern CAN_RxMsg_t lastRx2Msg;
 /** @brief Persistent counter for consecutive TX failures across any CAN channel */
 static uint8_t canConsecutiveFailures = 0;
 
+/* ==================== Internal Helpers =============================== */
+
+/**
+ * @brief Populate every field of an Extended-ID classic CAN frame header.
+ *        Use a local header per TX site (avoids the shared-global race
+ *        between sendMasterInfoToCAN, simulateInverterBurst, Error_Handler).
+ */
+static inline void initCan2TxHeader(FDCAN_TxHeaderTypeDef *h, uint32_t id) {
+    h->Identifier          = id;
+    h->IdType              = FDCAN_EXTENDED_ID;
+    h->TxFrameType         = FDCAN_DATA_FRAME;
+    h->DataLength          = FDCAN_DLC_BYTES_8;
+    h->ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    h->BitRateSwitch       = FDCAN_BRS_OFF;
+    h->FDFormat            = FDCAN_CLASSIC_CAN;
+    h->TxEventFifoControl  = FDCAN_NO_TX_EVENTS;
+    h->MessageMarker       = 0;
+}
+
+/** @brief Saturate float temperature into uint8_t [0, 255] (avoids UB on negative/overflow). */
+static inline uint8_t clamp_temp_byte(float t) {
+    if (t < 0.0f)   return 0;
+    if (t > 255.0f) return 255;
+    return (uint8_t)t;
+}
+
 /* ==================== Lookup Tables ================================= */
 uint32_t slaveBurstBaseId[4] = {
 		idSlave1Burst0,
@@ -68,8 +94,24 @@ uint32_t slaveErrorIds[4] = {
 
 /**
  * @brief Centralized function for single frame transmission with retry and safety monitoring.
+ *
+ * Detects bus-off explicitly via HAL_FDCAN_GetProtocolStatus — otherwise the
+ * FIFO-full retry loop would silently "succeed" (FIFO drains as the periph
+ * abandons frames in bus-off state) and frames would vanish without trace.
  */
 static CAN_TxStatus_t sendSingleFrame(FDCAN_HandleTypeDef *hfdcan, FDCAN_TxHeaderTypeDef *pHeader, uint8_t *pData){
+	/* Bus-off detection: if periph stopped TXing due to TEC overflow,
+	 * trigger recovery (Stop+Start clears INIT and arms the 11×128 recessive-bit wait)
+	 * and count this as a TX failure. Caller will see FAIL/FATAL and act. */
+	FDCAN_ProtocolStatusTypeDef protoStatus;
+	HAL_FDCAN_GetProtocolStatus(hfdcan, &protoStatus);
+	if (protoStatus.BusOff) {
+		HAL_FDCAN_Stop(hfdcan);
+		HAL_FDCAN_Start(hfdcan);
+		canConsecutiveFailures++;
+		return (canConsecutiveFailures >= CAN_TX_FAULT_THRESHOLD) ? CAN_TX_FATAL : CAN_TX_FAIL;
+	}
+
 	uint8_t retry = 0;
 	while (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, pHeader, pData) != HAL_OK)
 	{
@@ -184,24 +226,27 @@ void receiveCANFromGeral() {
 }
 
 void sendMasterInfoToCAN(float *slaveMaxTemps, int error){
-	FDCAN2TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-	FDCAN2TxHeader.Identifier = idMasterCAN2;
-	FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
+	/* Local header + payload — no shared globals (avoids race + stale bytes 5-7
+	 * from any previous TX such as simulateInverterBurst). */
+	FDCAN_TxHeaderTypeDef txHeader;
+	uint8_t               txData[8] = {0};  /* zero-init: bytes 5-7 stay clean per spec */
 
-	FDCAN2TxData[0] = error;
+	initCan2TxHeader(&txHeader, idMasterCAN2);
 
-	/* Pack max temperatures from the 4 estimated logical modules */
+	txData[0] = (uint8_t)error;
+
+	/* Pack max temperatures from the 4 estimated logical modules, clamped to [0,255] */
 	for(int i = 0; i < 4; i++){
-		FDCAN2TxData[i+1] = (uint8_t)slaveMaxTemps[i];
+		txData[i+1] = clamp_temp_byte(slaveMaxTemps[i]);
 	}
 
 	/* Use robust TX mechanism; trigger shutdown on fatal network failure */
-	CAN_TxStatus_t result = sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
+	CAN_TxStatus_t result = sendSingleFrame(&hfdcan2, &txHeader, txData);
 	if(result == CAN_TX_FATAL){
 		taskENTER_CRITICAL();
 		tmsErrorCode |= masterCANFault;
 		taskEXIT_CRITICAL();
-		Error_Handler();
+		Error_Handler();  /* never returns; performs its own __disable_irq() */
 	}
 }
 
@@ -237,16 +282,16 @@ void simulateInverterBurst(void){
 	/* Helper loopback function to generate artificial BMS/Estimator inputs */
 	static uint32_t lastPulseTime = 0;
 	static float simCurrent = 0.0f;
-	static float packVolt = 144.0f; 
-	static uint8_t simAvgCellV_byte = 160; 
+	static float packVolt = 144.0f;
+	static uint8_t simAvgCellV_byte = 160;
 
 	uint32_t now = HAL_GetTick();
 
 	if(now - lastPulseTime > 3000){
-		simCurrent = 40.0f; 
-		packVolt = 140.6f; 
+		simCurrent = 40.0f;
+		packVolt = 140.6f;
 		// Adiciona um pequeno ruído (+/- 1 bit) para o valor variar no Live Expressions
-		simAvgCellV_byte = 150 + (rand() % 3); 
+		simAvgCellV_byte = 150 + (rand() % 3);
 		lastPulseTime = now;
 	} else if(simCurrent > 0.0f && (now - lastPulseTime > 2000)){
 		simCurrent = 0.0f;
@@ -254,31 +299,31 @@ void simulateInverterBurst(void){
 		simAvgCellV_byte = 160;
 	}
 
-	FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
-	FDCAN2TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+	/* Local header + payload — no shared TX globals */
+	FDCAN_TxHeaderTypeDef txHeader;
+	uint8_t               txData[8];
 
 	// 1. Pack info
-	FDCAN2TxHeader.Identifier = CANSplitterID1;
-	memcpy(&FDCAN2TxData[0], &packVolt, 4);
-	memcpy(&FDCAN2TxData[4], &simCurrent, 4);
-	sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
+	initCan2TxHeader(&txHeader, CANSplitterID1);
+	memcpy(&txData[0], &packVolt, 4);
+	memcpy(&txData[4], &simCurrent, 4);
+	sendSingleFrame(&hfdcan2, &txHeader, txData);
 
 	// 2. SOC info
-	FDCAN2TxHeader.Identifier = CANSplitterID2;
+	initCan2TxHeader(&txHeader, CANSplitterID2);
 	uint32_t fakeFlags = 0;
-	memcpy(&FDCAN2TxData[0], &fakeFlags, 4);
-	FDCAN2TxData[4] = simAvgCellV_byte;
-	FDCAN2TxData[5] = simAvgCellV_byte;
-	FDCAN2TxData[6] = simAvgCellV_byte;
-	FDCAN2TxData[7] = 50;
-	sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
+	memcpy(&txData[0], &fakeFlags, 4);
+	txData[4] = simAvgCellV_byte;
+	txData[5] = simAvgCellV_byte;
+	txData[6] = simAvgCellV_byte;
+	txData[7] = 50;
+	sendSingleFrame(&hfdcan2, &txHeader, txData);
 
 	// 3. Cell IDs
 	uint32_t cellIDs[5] = {CANSplitterID4, CANSplitterID5, CANSplitterID6, CANSplitterID7, CANSplitterID8};
-	uint8_t cellData[8];
-	memset(cellData, simAvgCellV_byte, 8);
+	memset(txData, simAvgCellV_byte, 8);
 	for(int i = 0; i < 5; i++) {
-		FDCAN2TxHeader.Identifier = cellIDs[i];
-		sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, cellData);
+		initCan2TxHeader(&txHeader, cellIDs[i]);
+		sendSingleFrame(&hfdcan2, &txHeader, txData);
 	}
 }

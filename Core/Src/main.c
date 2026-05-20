@@ -432,10 +432,14 @@ static void MX_FDCAN2_Init(void)
   hfdcan2.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
 #ifdef testLoopbackCAN2
   hfdcan2.Init.Mode = FDCAN_MODE_EXTERNAL_LOOPBACK;
+  /* Single-node bench → no ACK ever. With AutoRetransmission ENABLE the
+   * periph locks on the first frame and the TX FIFO never drains, tripping
+   * the software fault-threshold and falsely triggering SDC. Disable on bench. */
+  hfdcan2.Init.AutoRetransmission = DISABLE;
 #else
   hfdcan2.Init.Mode = FDCAN_MODE_NORMAL;
-#endif
   hfdcan2.Init.AutoRetransmission = ENABLE;
+#endif
   hfdcan2.Init.TransmitPause = DISABLE;
   hfdcan2.Init.ProtocolException = DISABLE;
   hfdcan2.Init.NominalPrescaler = 10;
@@ -485,9 +489,8 @@ static void MX_FDCAN2_Init(void)
 
   HAL_FDCAN_Start(&hfdcan2);
 
-  FDCAN2TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
-  FDCAN2TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+  /* Note: FDCAN2TxHeader global no longer used — every TX site builds its own
+   * local FDCAN_TxHeaderTypeDef (see can.c::initCan2TxHeader + Error_Handler). */
   /* USER CODE END FDCAN2_Init 2 */
 
 }
@@ -827,13 +830,36 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, SET);
 
-	/* Emergency frame inline — evita NULL dereference e recursão via sendMasterInfoToCAN */
+	/* Emergency frame inline — local header avoids race with any other TX site.
+	 * Populate ALL fields explicitly (don't rely on zero-init coincidence). */
+	FDCAN_TxHeaderTypeDef txHeader;
 	uint8_t emergencyData[8] = {0};
 	emergencyData[0] = (uint8_t)tmsErrorCode;
-	FDCAN2TxHeader.Identifier = idMasterCAN2;
-	FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
-	FDCAN2TxHeader.DataLength = FDCAN_DLC_BYTES_8;
-	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &FDCAN2TxHeader, emergencyData);
+
+	txHeader.Identifier          = idMasterCAN2;
+	txHeader.IdType              = FDCAN_EXTENDED_ID;
+	txHeader.TxFrameType         = FDCAN_DATA_FRAME;
+	txHeader.DataLength          = FDCAN_DLC_BYTES_8;
+	txHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+	txHeader.BitRateSwitch       = FDCAN_BRS_OFF;
+	txHeader.FDFormat            = FDCAN_CLASSIC_CAN;
+	txHeader.TxEventFifoControl  = FDCAN_NO_TX_EVENTS;
+	txHeader.MessageMarker       = 0;
+
+	/* Retry the enqueue (FIFO may be full — that's likely the very reason we're here).
+	 * Busy-wait instead of osDelay: RTOS may already be in a critical section. */
+	for (uint32_t retry = 0; retry < 100; retry++) {
+		if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &txHeader, emergencyData) == HAL_OK) break;
+		for (volatile int i = 0; i < 17000; i++);  /* ~100 µs at 170 MHz */
+	}
+
+	/* Drain wait: give the periph up to ~50 ms to push the emergency frame onto the wire.
+	 * FDCAN runs autonomously even with IRQs disabled — but we want the frame to actually leave
+	 * before we halt the core (external resets/WDTs may strike). */
+	for (uint32_t waited = 0; waited < 500; waited++) {
+		if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) >= 3) break;  /* G4 TX FIFO has 3 slots */
+		for (volatile int i = 0; i < 17000; i++);  /* ~100 µs */
+	}
 
   __disable_irq();
   while (1)
