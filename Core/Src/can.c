@@ -143,8 +143,9 @@ void receiveCANFromGeral() {
 		bmsCANError = FDCAN2RxData[0];
 
 		if (bmsCANError != 0) {
+			UBaseType_t uxSaved = taskENTER_CRITICAL_FROM_ISR();
 			tmsErrorCode |= CANSplitterCANFault;
-			Error_Handler();
+			taskEXIT_CRITICAL_FROM_ISR(uxSaved);
 		}
 		return;
 	}
@@ -197,8 +198,10 @@ void sendMasterInfoToCAN(float *slaveMaxTemps, int error){
 	/* Use robust TX mechanism; trigger shutdown on fatal network failure */
 	CAN_TxStatus_t result = sendSingleFrame(&hfdcan2, &FDCAN2TxHeader, FDCAN2TxData);
 	if(result == CAN_TX_FATAL){
+		taskENTER_CRITICAL();
 		tmsErrorCode |= masterCANFault;
-		Error_Handler(); 
+		taskEXIT_CRITICAL();
+		Error_Handler();
 	}
 }
 
@@ -216,7 +219,9 @@ void sendToSlavesCAN(uint32_t id, uint8_t *data, uint32_t len){
 	/* Use robust TX mechanism; trigger shutdown on fatal network failure */
 	CAN_TxStatus_t result = sendSingleFrame(&hfdcan1, &FDCAN1TxHeader, FDCAN1TxData);
 	if(result == CAN_TX_FATAL){
+		taskENTER_CRITICAL();
 		tmsErrorCode |= masterCANFault;
+		taskEXIT_CRITICAL();
 		Error_Handler();
 	}
 }

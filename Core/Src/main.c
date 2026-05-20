@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include "bms_temp_est.h"
 #include <math.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,6 +100,8 @@ extern float slaveTempBuffers[numberOfSlaves][thermistorsRecieved];
 
 extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 
+float maxSentTemps[4] = {0};
+
 uint32_t rawAdcBuffer[numberOfThermistors] = {0}; 
 extern uint16_t filteredAdcBuffer[numberOfThermistors];
 float voltageBuffer[numberOfThermistors] = {0}, tempBuffer[numberOfThermistors] = {0};
@@ -149,7 +152,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -432,7 +435,7 @@ static void MX_FDCAN2_Init(void)
 #else
   hfdcan2.Init.Mode = FDCAN_MODE_NORMAL;
 #endif
-  hfdcan2.Init.AutoRetransmission = DISABLE;
+  hfdcan2.Init.AutoRetransmission = ENABLE;
   hfdcan2.Init.TransmitPause = DISABLE;
   hfdcan2.Init.ProtocolException = DISABLE;
   hfdcan2.Init.NominalPrescaler = 10;
@@ -443,7 +446,7 @@ static void MX_FDCAN2_Init(void)
   hfdcan2.Init.DataSyncJumpWidth = 1;
   hfdcan2.Init.DataTimeSeg1 = 1;
   hfdcan2.Init.DataTimeSeg2 = 1;
-  hfdcan2.Init.StdFiltersNbr = 0;
+  hfdcan2.Init.StdFiltersNbr = 1;
   hfdcan2.Init.ExtFiltersNbr = 1;
   hfdcan2.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK)
@@ -464,6 +467,19 @@ static void MX_FDCAN2_Init(void)
   if (HAL_FDCAN_ConfigFilter(&hfdcan2, &sFilterConfig2) != HAL_OK) {
 	  Error_Handler();
   }
+
+//  FDCAN_FilterTypeDef sStdFilterConfig2;
+//
+//  sStdFilterConfig2.IdType = FDCAN_STANDARD_ID;
+//  sStdFilterConfig2.FilterIndex = 0;
+//  sStdFilterConfig2.FilterType = FDCAN_FILTER_MASK;
+//  sStdFilterConfig2.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+//  sStdFilterConfig2.FilterID1 = 0;
+//  sStdFilterConfig2.FilterID2 = 0;
+//
+//  if (HAL_FDCAN_ConfigFilter(&hfdcan2, &sStdFilterConfig2) != HAL_OK) {
+//	  Error_Handler();
+//  }
 
   HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
 
@@ -586,14 +602,19 @@ void xSendCANFunction(void *argument)
   /* This task manages periodic status transmission and fault checking (10Hz) */
   for(;;)
   {
-	  float maxSentTemps[4] = {0};
+	  memset(maxSentTemps, 0, sizeof(maxSentTemps));
 	  bool anyEstOvertempThisCycle = false;
 	  
 	  for(int m = 0; m < 4; m++){
 		  float ntc_max = 0.0f;
 		  // Coleta temperatura max física lida do slave caso ele exista e esteja online
-		  if(m < numberOfSlaves && slaveOnline[m]){
-		  	  ntc_max = findMaxVal(slaveTempBuffers[m]);
+		  taskENTER_CRITICAL();
+		  bool local_online = slaveOnline[m];
+		  float local_slaveTemps[thermistorsRecieved];
+		  if(local_online) memcpy(local_slaveTemps, slaveTempBuffers[m], sizeof(local_slaveTemps));
+		  taskEXIT_CRITICAL();
+		  if(m < numberOfSlaves && local_online){
+		  	  ntc_max = findMaxVal(local_slaveTemps);
 		  }
 		  // Coleta a estimada via Arrhenius-R_DC (Pega a pior dentre as 10 células do módulo)
 		  float est_module_max = 0.0f;
@@ -612,7 +633,9 @@ void xSendCANFunction(void *argument)
 
 		  // Verificação Isolada de Over-Temperature - NTC dispara instantaneamente
 		  if(ntc_max > maxTemperatureThresholdNTC) {
+			  taskENTER_CRITICAL();
 			  tmsErrorCode |= overTemperatureFault;
+			  taskEXIT_CRITICAL();
 //			  Error_Handler(); // Trigger Safety Shutdown
 		  }
 		  
@@ -626,7 +649,9 @@ void xSendCANFunction(void *argument)
 	  if(anyEstOvertempThisCycle) {
           estOvertempCounter++;
           if (estOvertempCounter >= 10) { // Persistiu quente por mais de 10 leituras contínuas (1 segundo)
+              taskENTER_CRITICAL();
               tmsErrorCode |= overTemperatureFaultEst;
+              taskEXIT_CRITICAL();
               Error_Handler(); // Trigger Safety Shutdown
           }
       } else {
@@ -687,11 +712,17 @@ void xCheckCommsFuncion(void *argument)
 	   * O Pack da Ampera 226 possui 8 paralelos. O bmsCurrent global precisa ser 
 	   * fracionado (bmsCurrent / 8.0f) para o estimador processar a calibração de uma célula unitária P28A.
 	   */
-	  float cellCurrent = bmsCurrent / 8.0f;
-	  
+	  taskENTER_CRITICAL();
+	  float local_bmsCurrent = bmsCurrent;
+	  float local_emusCellVolts[40];
+	  memcpy(local_emusCellVolts, emusCellVolts, sizeof(local_emusCellVolts));
+	  taskEXIT_CRITICAL();
+
+	  float cellCurrent = local_bmsCurrent / 8.0f;
+
 	  /* Passa as 40 voltagens individuais pros 40 estimadores térmicos e salva pro Live Expressions */
 	  for(int c = 0; c < 40; c++){
-		  float cellVolt = emusCellVolts[c];
+		  float cellVolt = local_emusCellVolts[c];
 		  
 		  // Filtro profilático, não injeta zero-volts
 		  if(cellVolt > 1.0f) { 
@@ -706,11 +737,15 @@ void xCheckCommsFuncion(void *argument)
 	  }
 
 	  /* Verify that each slave has sent data within the last 2 seconds */
+	  taskENTER_CRITICAL();
 	  tmsErrorCode &= ~commFault;
+	  taskEXIT_CRITICAL();
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(atualTick - slaveLastMessageTicks[i] > 2000){
 			  slaveOnline[i] = false;
+			  taskENTER_CRITICAL();
 			  tmsErrorCode |= commFault;
+			  taskEXIT_CRITICAL();
 		  }
 	  }
     osDelay(10); // Check frequency: 100Hz
@@ -790,9 +825,16 @@ void xReadTempFunction(void *argument)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
-	sendMasterInfoToCAN(0, tmsErrorCode);
-  /* User can add his own implementation to report the HAL error return state */
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, SET);
+
+	/* Emergency frame inline — evita NULL dereference e recursão via sendMasterInfoToCAN */
+	uint8_t emergencyData[8] = {0};
+	emergencyData[0] = (uint8_t)tmsErrorCode;
+	FDCAN2TxHeader.Identifier = idMasterCAN2;
+	FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
+	FDCAN2TxHeader.DataLength = FDCAN_DLC_BYTES_8;
+	HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &FDCAN2TxHeader, emergencyData);
+
   __disable_irq();
   while (1)
   {
