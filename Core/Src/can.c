@@ -22,6 +22,9 @@ extern FDCAN_TxHeaderTypeDef FDCAN1TxHeader;
 extern uint8_t FDCAN2RxData[8];
 extern FDCAN_RxHeaderTypeDef FDCAN2RxHeader;
 
+/* Status do último TX por barramento (definidos no main.c) — debug/diagnóstico. */
+extern CAN_TxStatus_t lastTx1Status, lastTx2Status;
+
 extern float bmsVoltage, bmsCurrent;
 extern float cellMaxVoltage, cellMinVoltage, cellAvgVoltage;
 extern uint32_t bmsProtectionFlags;
@@ -127,6 +130,10 @@ static CAN_TxStatus_t sendSingleFrame(FDCAN_HandleTypeDef *hfdcan, FDCAN_TxHeade
 	}
 
 	canConsecutiveFailures = 0;
+	/* TX voltou a passar -> limpa a falha de CAN (recuperável, sem reset). */
+	taskENTER_CRITICAL();
+	tmsErrorCode &= ~masterCANFault;
+	taskEXIT_CRITICAL();
 	return CAN_TX_OK;
 }
 
@@ -242,11 +249,13 @@ void sendMasterInfoToCAN(float *slaveMaxTemps, int error){
 
 	/* Use robust TX mechanism; trigger shutdown on fatal network failure */
 	CAN_TxStatus_t result = sendSingleFrame(&hfdcan2, &txHeader, txData);
+	lastTx2Status = result;   /* status do último TX CAN2 (visível no Live Expressions) */
 	if(result == CAN_TX_FATAL){
+		/* TX-fatal no CAN2: só sinaliza a flag, SEM halt. Limpa sozinha quando
+		 * um TX voltar a passar (em sendSingleFrame). */
 		taskENTER_CRITICAL();
 		tmsErrorCode |= masterCANFault;
 		taskEXIT_CRITICAL();
-		Error_Handler();  /* never returns; performs its own __disable_irq() */
 	}
 }
 
@@ -263,11 +272,13 @@ void sendToSlavesCAN(uint32_t id, uint8_t *data, uint32_t len){
 
 	/* Use robust TX mechanism; trigger shutdown on fatal network failure */
 	CAN_TxStatus_t result = sendSingleFrame(&hfdcan1, &FDCAN1TxHeader, FDCAN1TxData);
+	lastTx1Status = result;   /* status do último TX CAN1 (visível no Live Expressions) */
 	if(result == CAN_TX_FATAL){
+		/* TX-fatal no CAN1 (slaves): só sinaliza, SEM halt. Recupera sozinha
+		 * quando um TX voltar a passar. */
 		taskENTER_CRITICAL();
 		tmsErrorCode |= masterCANFault;
 		taskEXIT_CRITICAL();
-		Error_Handler();
 	}
 }
 

@@ -639,7 +639,7 @@ void xSendCANFunction(void *argument)
 			  taskENTER_CRITICAL();
 			  tmsErrorCode |= overTemperatureFault;
 			  taskEXIT_CRITICAL();
-//			  Error_Handler(); // Trigger Safety Shutdown
+			  Error_Handler(); // Trigger Safety Shutdown
 		  }
 		  
 		  // Levanta a flag temporária se a estimada violar o teto neste pulso
@@ -655,10 +655,13 @@ void xSendCANFunction(void *argument)
               taskENTER_CRITICAL();
               tmsErrorCode |= overTemperatureFaultEst;
               taskEXIT_CRITICAL();
-              Error_Handler(); // Trigger Safety Shutdown
+              /* Overtemp ESTIMADA: só sinaliza a flag, SEM halt (recuperável). */
           }
       } else {
           estOvertempCounter = 0; // Se a anomalia esfriar/desaparecer antes de 1s, zera o contador
+          taskENTER_CRITICAL();
+          tmsErrorCode &= ~overTemperatureFaultEst; // limpa sozinho ao normalizar
+          taskEXIT_CRITICAL();
       }
 
 	  /* Send Master status and maximum temperatures to CAN2 */
@@ -787,6 +790,7 @@ void xReadTempFunction(void *argument)
 		}
 
 		/* Perform signal processing for all 16 simulated channels */
+		bool anyThermFault = false;
 		for (int i = 0; i < numberOfThermistors; i++) {
 
 			/* Step 1: Median Filter (Window 3) — Spikes elimination */
@@ -807,12 +811,15 @@ void xReadTempFunction(void *argument)
 				}
 			}
 			else{
-				/* Critical Sensor Fault: Shut down immediately */
-				thermistorFault = 1;
-				sendReadingErrorInfoIntoCAN();
-				osDelay(5); // Ensure frame is queued before halt
-				Error_Handler();
+				/* Falha de leitura de sensor: marca, mas NÃO faz halt (recuperável). */
+				anyThermFault = true;
 			}
+		}
+		/* thermistorFault reflete o ciclo: seta se algum canal falhou, volta a 0
+		 * sozinho quando todos lerem OK (recupera sem reset). */
+		thermistorFault = anyThermFault ? 1 : 0;
+		if (anyThermFault) {
+			sendReadingErrorInfoIntoCAN();
 		}
 #endif
 		/* Sampling rate: 10Hz */
@@ -829,7 +836,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, SET);
-
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
 	/* Emergency frame inline — local header avoids race with any other TX site.
 	 * Populate ALL fields explicitly (don't rely on zero-init coincidence). */
 	FDCAN_TxHeaderTypeDef txHeader;
