@@ -95,12 +95,17 @@ CAN_RxMsg_t lastRx2Msg;
 CAN_TxStatus_t lastTx2Status = CAN_TX_OK;
 
 extern volatile int tmsErrorCode;
+extern volatile bool simulateHighTemp;   /* errors.c — segura a falha de overtemp no demo */
 
 extern float slaveTempBuffers[numberOfSlaves][thermistorsRecieved];
 
 extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 
 float maxSentTemps[4] = {0};
+/* maior temperatura (NTC/estimada fundida) do ciclo atual — p/ Live Expressions.
+ * volatile: o debugger le sempre o valor fresco e nao e' otimizado; congela no
+ * valor injetado (100) quando o overtemp NTC da halt. */
+volatile float maxTempLive = 0.0f;
 
 uint32_t rawAdcBuffer[numberOfThermistors] = {0}; 
 extern uint16_t filteredAdcBuffer[numberOfThermistors];
@@ -175,6 +180,8 @@ int main(void)
   for (int c = 0; c < 40; c++) {
       bmsTempEstInit(&cellTempEstimators[c]);
   }
+
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, RESET);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -601,12 +608,15 @@ void xSendCANFunction(void *argument)
 {
   /* USER CODE BEGIN 5 */
   static uint8_t estOvertempCounter = 0;
+  static bool overtempLatched = false;   /* segura o overtemp NTC ate' simulateHighTemp=false */
   
   /* This task manages periodic status transmission and fault checking (10Hz) */
   for(;;)
   {
 	  memset(maxSentTemps, 0, sizeof(maxSentTemps));
 	  bool anyEstOvertempThisCycle = false;
+	  float cycleMax = 0.0f;   /* maior temp deste ciclo -> espelhada em maxTempLive */
+	  bool anyNtcOvertempThisCycle = false;   /* overtemp NTC deste ciclo (recuperavel) */
 	  
 	  for(int m = 0; m < 4; m++){
 		  float ntc_max = 0.0f;
@@ -619,6 +629,13 @@ void xSendCANFunction(void *argument)
 		  if(m < numberOfSlaves && local_online){
 		  	  ntc_max = findMaxVal(local_slaveTemps);
 		  }
+
+		  /* Fault injection (debug/scrutineering): força a temperatura NTC lida
+		   * ANTES do check de overtemperature. So' age se simulateHighTemp==true
+		   * (errors.c) — arme via Live Expressions na frente do juiz.
+		   * Antes escrevia em maxSentTemps[0] DEPOIS do check -> nao fazia nada. */
+		  injectFault(&ntc_max);
+
 		  // Coleta a estimada via Arrhenius-R_DC (Pega a pior dentre as 10 células do módulo)
 		  float est_module_max = 0.0f;
 		  for(int subCell = 0; subCell < 10; subCell++){
@@ -634,18 +651,40 @@ void xSendCANFunction(void *argument)
 		  // Funde as temperaturas extraindo a pior possível daquele módulo
 		  maxSentTemps[m] = fmaxf(ntc_max, est_module_max);
 
+		  /* maior temp do ciclo, espelhada no global ANTES do check: se o overtemp
+		   * der halt, maxTempLive ja' mostra o valor (injetado) na tela */
+		  if(maxSentTemps[m] > cycleMax) cycleMax = maxSentTemps[m];
+		  maxTempLive = cycleMax;
+
 		  // Verificação Isolada de Over-Temperature - NTC dispara instantaneamente
-		  if(ntc_max > maxTemperatureThresholdNTC) {
-			  taskENTER_CRITICAL();
-			  tmsErrorCode |= overTemperatureFault;
-			  taskEXIT_CRITICAL();
-			  Error_Handler(); // Trigger Safety Shutdown
+		  if(ntc_max > maxTemperatureThresholdNTC && HAL_GetTick() > OVERTEMP_STARTUP_GRACE_MS) {
+			  anyNtcOvertempThisCycle = true;   /* avaliado apos o loop (recuperavel, sem halt) */
 		  }
 		  
 		  // Levanta a flag temporária se a estimada violar o teto neste pulso
-		  if(est_module_max > maxTemperatureThresholdEst) {
+		  if(est_module_max > maxTemperatureThresholdEst && HAL_GetTick() > OVERTEMP_STARTUP_GRACE_MS) {
 		      anyEstOvertempThisCycle = true;
 		  }
+	  }
+
+	  /* Over-temp NTC: instantaneo mas RECUPERAVEL (sem Error_Handler/halt). Abre o
+	   * SDC (PC7) e seta a flag enquanto quente; limpa e fecha quando normaliza ->
+	   * com simulateHighTemp=true a falha fica TRAVADA ate' voce por false. */
+	  /* LATCH: arma quando quente; SO' solta quando a temp normaliza E a simulacao
+	   * esta desligada -> simulateHighTemp segura a falha ate' voce por false. */
+	  if(anyNtcOvertempThisCycle)                       overtempLatched = true;
+	  if(!anyNtcOvertempThisCycle && !simulateHighTemp) overtempLatched = false;
+
+	  if(overtempLatched) {
+		  taskENTER_CRITICAL();
+		  tmsErrorCode |= overTemperatureFault;
+		  taskEXIT_CRITICAL();
+		  HAL_GPIO_WritePin(GPIOC, shutdownPin_Pin, GPIO_PIN_SET);   /* abre SDC */
+	  } else {
+		  taskENTER_CRITICAL();
+		  tmsErrorCode &= ~overTemperatureFault;
+		  taskEXIT_CRITICAL();
+		  HAL_GPIO_WritePin(GPIOC, shutdownPin_Pin, GPIO_PIN_RESET); /* fecha SDC */
 	  }
 
 	  // Avalia o debounce (Filtro contra falsas medições estocásticas do logaritmo)
@@ -677,8 +716,9 @@ void xSendCANFunction(void *argument)
 	  simulateInverterBurst();
 #endif
 
-	  /* Inject simulated faults if global debug flags are set */
-	  injectFault(&maxSentTemps[0]);
+	  /* (fault injection movido pra dentro do loop, sobre ntc_max — aqui
+	   * escrevia em maxSentTemps[0], zerado/sobrescrito a cada ciclo e nunca
+	   * checado pelo overtemperature) */
 
 	  /* Visual heartbeat for OS health */
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);

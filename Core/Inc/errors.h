@@ -19,6 +19,7 @@
 #define overTemperatureFaultEst 1<<5
 
 #define maxTemperatureThresholdNTC 55
+#define OVERTEMP_STARTUP_GRACE_MS 2000   /* ignora overtemp nos primeiros 2s pos-boot (HAL_GetTick em ms) */
 #define maxTemperatureThresholdEst 60
 
 #define thermistorsPerSlave 16

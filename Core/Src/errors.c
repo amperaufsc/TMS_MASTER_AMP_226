@@ -9,9 +9,11 @@
 #include "stdbool.h"
 #include "stdint.h"
 
-/* Global flags for fault injection testing */
-bool simulateHighTemp = false;
-bool simulateCommLoss = false;
+/* Global flags for fault injection testing.
+ * simulateHighTemp: vira true (Live Expressions) p/ forçar overTemperatureFault
+ *   -> Error_Handler (emergency CAN + halt). Default false p/ bootar normal. */
+volatile bool simulateHighTemp = false;   /* volatile: garante que a escrita do debugger seja lida */
+volatile bool simulateCommLoss = false;
 
 extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 
