@@ -5,6 +5,7 @@ Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
   0 .isr_vector   000001d8  08000000  08000000  00001000  2**0
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
+<<<<<<< Updated upstream
   1 .text         000097a4  080001e0  080001e0  000011e0  2**4
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
   2 .rodata       00000268  08009984  08009984  0000a984  2**2
@@ -24,9 +25,31 @@ Idx Name          Size      VMA       LMA       File off  Algn
   9 .bss          00002900  20000084  08009c80  0000b084  2**2
                   ALLOC
  10 ._user_heap_stack 00000604  20002984  08009c80  0000b984  2**0
+=======
+  1 .text         00008a38  080001e0  080001e0  000011e0  2**4
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .rodata       00000170  08008c18  08008c18  00009c18  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .ARM.extab    00000000  08008d88  08008d88  0000a080  2**0
+                  CONTENTS, READONLY
+  4 .ARM          00000000  08008d88  08008d88  0000a080  2**0
+                  CONTENTS, READONLY
+  5 .preinit_array 00000000  08008d88  08008d88  0000a080  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  6 .init_array   00000004  08008d88  08008d88  00009d88  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  7 .fini_array   00000004  08008d8c  08008d8c  00009d8c  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  8 .data         00000080  20000000  08008d90  0000a000  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  9 .bss          000029b0  20000080  08008e10  0000a080  2**2
+                  ALLOC
+ 10 ._user_heap_stack 00000600  20002a30  08008e10  0000aa30  2**0
+>>>>>>> Stashed changes
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  0000b084  2**0
                   CONTENTS, READONLY
+<<<<<<< Updated upstream
  12 .debug_info   0001a2af  00000000  00000000  0000b0b4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  13 .debug_abbrev 00003d80  00000000  00000000  00025363  2**0
@@ -46,6 +69,27 @@ Idx Name          Size      VMA       LMA       File off  Algn
  20 .debug_frame  00006b10  00000000  00000000  001289f8  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  21 .debug_line_str 0000007b  00000000  00000000  0012f508  2**0
+=======
+ 12 .debug_info   00019f1a  00000000  00000000  0000a0b0  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 13 .debug_abbrev 00003bdf  00000000  00000000  00023fca  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 14 .debug_aranges 00001670  00000000  00000000  00027bb0  2**3
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 15 .debug_rnglists 00001107  00000000  00000000  00029220  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 16 .debug_macro  00003ac0  00000000  00000000  0002a327  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 17 .debug_line   000181a4  00000000  00000000  0002dde7  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 18 .debug_str    000dd77c  00000000  00000000  00045f8b  2**0
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 19 .comment      00000043  00000000  00000000  00123707  2**0
+                  CONTENTS, READONLY
+ 20 .debug_frame  00005b34  00000000  00000000  0012374c  2**2
+                  CONTENTS, READONLY, DEBUGGING, OCTETS
+ 21 .debug_line_str 0000005b  00000000  00000000  00129280  2**0
+>>>>>>> Stashed changes
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -64,7 +108,11 @@ Disassembly of section .text:
  80001f6:	bd10      	pop	{r4, pc}
  80001f8:	20000084 	.word	0x20000084
  80001fc:	00000000 	.word	0x00000000
+<<<<<<< Updated upstream
  8000200:	0800996c 	.word	0x0800996c
+=======
+ 8000200:	08008c00 	.word	0x08008c00
+>>>>>>> Stashed changes
 
 08000204 <frame_dummy>:
  8000204:	b508      	push	{r3, lr}
@@ -75,8 +123,13 @@ Disassembly of section .text:
  800020e:	f3af 8000 	nop.w
  8000212:	bd08      	pop	{r3, pc}
  8000214:	00000000 	.word	0x00000000
+<<<<<<< Updated upstream
  8000218:	20000088 	.word	0x20000088
  800021c:	0800996c 	.word	0x0800996c
+=======
+ 8000218:	20000084 	.word	0x20000084
+ 800021c:	08008c00 	.word	0x08008c00
+>>>>>>> Stashed changes
 
 08000220 <memchr>:
  8000220:	f001 01ff 	and.w	r1, r1, #255	@ 0xff
@@ -346,6 +399,7 @@ static void getArrheniusParams(float soc, float *r0, float *r1, float *ea) {
  800040a:	683b      	ldr	r3, [r7, #0]
  800040c:	601a      	str	r2, [r3, #0]
 }
+<<<<<<< Updated upstream
  800040e:	371c      	adds	r7, #28
  8000410:	46bd      	mov	sp, r7
  8000412:	f85d 7b04 	ldr.w	r7, [sp], #4
@@ -359,6 +413,21 @@ static void getArrheniusParams(float soc, float *r0, float *r1, float *ea) {
  8000430:	080099ec 	.word	0x080099ec
  8000434:	08009a18 	.word	0x08009a18
  8000438:	08009a44 	.word	0x08009a44
+=======
+ 800036e:	371c      	adds	r7, #28
+ 8000370:	46bd      	mov	sp, r7
+ 8000372:	f85d 7b04 	ldr.w	r7, [sp], #4
+ 8000376:	4770      	bx	lr
+ 8000378:	bda730c6 	.word	0xbda730c6
+ 800037c:	3d0e8d1c 	.word	0x3d0e8d1c
+ 8000380:	3cdfaebc 	.word	0x3cdfaebc
+ 8000384:	3bd5ae1d 	.word	0x3bd5ae1d
+ 8000388:	34e71c13 	.word	0x34e71c13
+ 800038c:	3e868167 	.word	0x3e868167
+ 8000390:	08008c64 	.word	0x08008c64
+ 8000394:	08008c90 	.word	0x08008c90
+ 8000398:	08008cbc 	.word	0x08008cbc
+>>>>>>> Stashed changes
 
 0800043c <bmsTempEstFeedSample>:
  * @brief Task Machine Loop do Estimador Térmico (Alimenta as variaveis)
@@ -1702,6 +1771,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
+<<<<<<< Updated upstream
  8000d76:	bf00      	nop
  8000d78:	e7fd      	b.n	8000d76 <main+0x86>
  8000d7a:	bf00      	nop
@@ -1717,6 +1787,23 @@ int main(void)
  8000da0:	08009ab8 	.word	0x08009ab8
  8000da4:	08001595 	.word	0x08001595
  8000da8:	20000250 	.word	0x20000250
+=======
+ 8000cf4:	bf00      	nop
+ 8000cf6:	e7fd      	b.n	8000cf4 <main+0x90>
+ 8000cf8:	20000458 	.word	0x20000458
+ 8000cfc:	48000800 	.word	0x48000800
+ 8000d00:	08008d54 	.word	0x08008d54
+ 8000d04:	20000358 	.word	0x20000358
+ 8000d08:	08008ce8 	.word	0x08008ce8
+ 8000d0c:	080011e5 	.word	0x080011e5
+ 8000d10:	2000034c 	.word	0x2000034c
+ 8000d14:	08008d0c 	.word	0x08008d0c
+ 8000d18:	0800148d 	.word	0x0800148d
+ 8000d1c:	20000350 	.word	0x20000350
+ 8000d20:	08008d30 	.word	0x08008d30
+ 8000d24:	0800167d 	.word	0x0800167d
+ 8000d28:	20000354 	.word	0x20000354
+>>>>>>> Stashed changes
 
 08000dac <SystemClock_Config>:
 /**
@@ -2712,6 +2799,7 @@ void xSendCANFunction(void *argument)
 		  
 		  // Funde as temperaturas extraindo a pior possível daquele módulo
 		  maxSentTemps[m] = fmaxf(ntc_max, est_module_max);
+<<<<<<< Updated upstream
  8001338:	edd7 0a0a 	vldr	s1, [r7, #40]	@ 0x28
  800133c:	ed97 0a0b 	vldr	s0, [r7, #44]	@ 0x2c
  8001340:	f008 f9e8 	bl	8009714 <fmaxf>
@@ -2722,6 +2810,41 @@ void xSendCANFunction(void *argument)
  800134e:	443b      	add	r3, r7
  8001350:	3b2c      	subs	r3, #44	@ 0x2c
  8001352:	edc3 7a00 	vstr	s15, [r3]
+=======
+ 80012d8:	edd7 7a12 	vldr	s15, [r7, #72]	@ 0x48
+ 80012dc:	eef0 0a67 	vmov.f32	s1, s15
+ 80012e0:	ed97 0a17 	vldr	s0, [r7, #92]	@ 0x5c
+ 80012e4:	f007 fb4e 	bl	8008984 <fmaxf>
+ 80012e8:	eef0 7a40 	vmov.f32	s15, s0
+ 80012ec:	4a5b      	ldr	r2, [pc, #364]	@ (800145c <xSendCANFunction+0x278>)
+ 80012ee:	6e3b      	ldr	r3, [r7, #96]	@ 0x60
+ 80012f0:	009b      	lsls	r3, r3, #2
+ 80012f2:	4413      	add	r3, r2
+ 80012f4:	edc3 7a00 	vstr	s15, [r3]
+
+		  /* maior temp do ciclo, espelhada no global ANTES do check: se o overtemp
+		   * der halt, maxTempLive ja' mostra o valor (injetado) na tela */
+		  if(maxSentTemps[m] > cycleMax) cycleMax = maxSentTemps[m];
+ 80012f8:	4a58      	ldr	r2, [pc, #352]	@ (800145c <xSendCANFunction+0x278>)
+ 80012fa:	6e3b      	ldr	r3, [r7, #96]	@ 0x60
+ 80012fc:	009b      	lsls	r3, r3, #2
+ 80012fe:	4413      	add	r3, r2
+ 8001300:	edd3 7a00 	vldr	s15, [r3]
+ 8001304:	ed97 7a1a 	vldr	s14, [r7, #104]	@ 0x68
+ 8001308:	eeb4 7ae7 	vcmpe.f32	s14, s15
+ 800130c:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 8001310:	d505      	bpl.n	800131e <xSendCANFunction+0x13a>
+ 8001312:	4a52      	ldr	r2, [pc, #328]	@ (800145c <xSendCANFunction+0x278>)
+ 8001314:	6e3b      	ldr	r3, [r7, #96]	@ 0x60
+ 8001316:	009b      	lsls	r3, r3, #2
+ 8001318:	4413      	add	r3, r2
+ 800131a:	681b      	ldr	r3, [r3, #0]
+ 800131c:	66bb      	str	r3, [r7, #104]	@ 0x68
+		  maxTempLive = cycleMax;
+ 800131e:	4a53      	ldr	r2, [pc, #332]	@ (800146c <xSendCANFunction+0x288>)
+ 8001320:	6ebb      	ldr	r3, [r7, #104]	@ 0x68
+ 8001322:	6013      	str	r3, [r2, #0]
+>>>>>>> Stashed changes
 
 		  // Verificação Isolada de Over-Temperature - NTC dispara instantaneamente
 		  if(ntc_max > maxTemperatureThresholdNTC) {
@@ -4285,7 +4408,11 @@ LoopForever:
   ldr r1, =_edata
  8001b98:	20000084 	.word	0x20000084
   ldr r2, =_sidata
+<<<<<<< Updated upstream
  8001b9c:	08009bfc 	.word	0x08009bfc
+=======
+ 8001bb4:	08008d90 	.word	0x08008d90
+>>>>>>> Stashed changes
   ldr r2, =_sbss
  8001ba0:	20000084 	.word	0x20000084
   ldr r4, =_ebss
@@ -7666,6 +7793,7 @@ HAL_StatusTypeDef HAL_ADC_ConfigChannel(ADC_HandleTypeDef *hadc, const ADC_Chann
  8002fd4:	d17e      	bne.n	80030d4 <HAL_ADC_ConfigChannel+0x820>
         {
           LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(hadc->Instance),
+<<<<<<< Updated upstream
  8002fd6:	687b      	ldr	r3, [r7, #4]
  8002fd8:	681b      	ldr	r3, [r3, #0]
  8002fda:	f1b3 4fa0 	cmp.w	r3, #1342177280	@ 0x50000000
@@ -7683,6 +7811,27 @@ HAL_StatusTypeDef HAL_ADC_ConfigChannel(ADC_HandleTypeDef *hadc, const ADC_Chann
  8002ff8:	4619      	mov	r1, r3
  8002ffa:	4610      	mov	r0, r2
  8002ffc:	f7fe fe59 	bl	8001cb2 <LL_ADC_SetCommonPathInternalCh>
+=======
+ 8002fee:	687b      	ldr	r3, [r7, #4]
+ 8002ff0:	681b      	ldr	r3, [r3, #0]
+ 8002ff2:	f1b3 4fa0 	cmp.w	r3, #1342177280	@ 0x50000000
+ 8002ff6:	d004      	beq.n	8003002 <HAL_ADC_ConfigChannel+0x736>
+ 8002ff8:	687b      	ldr	r3, [r7, #4]
+ 8002ffa:	681b      	ldr	r3, [r3, #0]
+ 8002ffc:	4a43      	ldr	r2, [pc, #268]	@ (800310c <HAL_ADC_ConfigChannel+0x840>)
+ 8002ffe:	4293      	cmp	r3, r2
+ 8003000:	d101      	bne.n	8003006 <HAL_ADC_ConfigChannel+0x73a>
+ 8003002:	4a43      	ldr	r2, [pc, #268]	@ (8003110 <HAL_ADC_ConfigChannel+0x844>)
+ 8003004:	e000      	b.n	8003008 <HAL_ADC_ConfigChannel+0x73c>
+ 8003006:	4a3e      	ldr	r2, [pc, #248]	@ (8003100 <HAL_ADC_ConfigChannel+0x834>)
+                                         LL_ADC_PATH_INTERNAL_TEMPSENSOR | tmp_config_internal_channel);
+ 8003008:	f8d7 30c4 	ldr.w	r3, [r7, #196]	@ 0xc4
+ 800300c:	f443 0300 	orr.w	r3, r3, #8388608	@ 0x800000
+          LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(hadc->Instance),
+ 8003010:	4619      	mov	r1, r3
+ 8003012:	4610      	mov	r0, r2
+ 8003014:	f7fe fe59 	bl	8001cca <LL_ADC_SetCommonPathInternalCh>
+>>>>>>> Stashed changes
           /* Delay for temperature sensor stabilization time */
           /* Wait loop initialization and execution */
           /* Note: Variable divided by 2 to compensate partially              */
@@ -7736,6 +7885,7 @@ HAL_StatusTypeDef HAL_ADC_ConfigChannel(ADC_HandleTypeDef *hadc, const ADC_Chann
  8003048:	d144      	bne.n	80030d4 <HAL_ADC_ConfigChannel+0x820>
         {
           LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(hadc->Instance),
+<<<<<<< Updated upstream
  800304a:	687b      	ldr	r3, [r7, #4]
  800304c:	681b      	ldr	r3, [r3, #0]
  800304e:	f1b3 4fa0 	cmp.w	r3, #1342177280	@ 0x50000000
@@ -7756,6 +7906,29 @@ HAL_StatusTypeDef HAL_ADC_ConfigChannel(ADC_HandleTypeDef *hadc, const ADC_Chann
         if (ADC_BATTERY_VOLTAGE_INSTANCE(hadc))
  8003074:	e02e      	b.n	80030d4 <HAL_ADC_ConfigChannel+0x820>
                                          LL_ADC_PATH_INTERNAL_VBAT | tmp_config_internal_channel);
+=======
+ 8003062:	687b      	ldr	r3, [r7, #4]
+ 8003064:	681b      	ldr	r3, [r3, #0]
+ 8003066:	f1b3 4fa0 	cmp.w	r3, #1342177280	@ 0x50000000
+ 800306a:	d004      	beq.n	8003076 <HAL_ADC_ConfigChannel+0x7aa>
+ 800306c:	687b      	ldr	r3, [r7, #4]
+ 800306e:	681b      	ldr	r3, [r3, #0]
+ 8003070:	4a26      	ldr	r2, [pc, #152]	@ (800310c <HAL_ADC_ConfigChannel+0x840>)
+ 8003072:	4293      	cmp	r3, r2
+ 8003074:	d101      	bne.n	800307a <HAL_ADC_ConfigChannel+0x7ae>
+ 8003076:	4a26      	ldr	r2, [pc, #152]	@ (8003110 <HAL_ADC_ConfigChannel+0x844>)
+ 8003078:	e000      	b.n	800307c <HAL_ADC_ConfigChannel+0x7b0>
+ 800307a:	4a21      	ldr	r2, [pc, #132]	@ (8003100 <HAL_ADC_ConfigChannel+0x834>)
+                                         LL_ADC_PATH_INTERNAL_VBAT | tmp_config_internal_channel);
+ 800307c:	f8d7 30c4 	ldr.w	r3, [r7, #196]	@ 0xc4
+ 8003080:	f043 7380 	orr.w	r3, r3, #16777216	@ 0x1000000
+          LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(hadc->Instance),
+ 8003084:	4619      	mov	r1, r3
+ 8003086:	4610      	mov	r0, r2
+ 8003088:	f7fe fe1f 	bl	8001cca <LL_ADC_SetCommonPathInternalCh>
+        if (ADC_BATTERY_VOLTAGE_INSTANCE(hadc))
+ 800308c:	e02e      	b.n	80030ec <HAL_ADC_ConfigChannel+0x820>
+>>>>>>> Stashed changes
         }
       }
       else if ((pConfig->Channel == ADC_CHANNEL_VREFINT)
@@ -7778,6 +7951,7 @@ HAL_StatusTypeDef HAL_ADC_ConfigChannel(ADC_HandleTypeDef *hadc, const ADC_Chann
  8003094:	d01e      	beq.n	80030d4 <HAL_ADC_ConfigChannel+0x820>
         {
           LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(hadc->Instance),
+<<<<<<< Updated upstream
  8003096:	687b      	ldr	r3, [r7, #4]
  8003098:	681b      	ldr	r3, [r3, #0]
  800309a:	f1b3 4fa0 	cmp.w	r3, #1342177280	@ 0x50000000
@@ -7796,6 +7970,28 @@ HAL_StatusTypeDef HAL_ADC_ConfigChannel(ADC_HandleTypeDef *hadc, const ADC_Chann
  80030ba:	4610      	mov	r0, r2
  80030bc:	f7fe fdf9 	bl	8001cb2 <LL_ADC_SetCommonPathInternalCh>
  80030c0:	e008      	b.n	80030d4 <HAL_ADC_ConfigChannel+0x820>
+=======
+ 80030ae:	687b      	ldr	r3, [r7, #4]
+ 80030b0:	681b      	ldr	r3, [r3, #0]
+ 80030b2:	f1b3 4fa0 	cmp.w	r3, #1342177280	@ 0x50000000
+ 80030b6:	d004      	beq.n	80030c2 <HAL_ADC_ConfigChannel+0x7f6>
+ 80030b8:	687b      	ldr	r3, [r7, #4]
+ 80030ba:	681b      	ldr	r3, [r3, #0]
+ 80030bc:	4a13      	ldr	r2, [pc, #76]	@ (800310c <HAL_ADC_ConfigChannel+0x840>)
+ 80030be:	4293      	cmp	r3, r2
+ 80030c0:	d101      	bne.n	80030c6 <HAL_ADC_ConfigChannel+0x7fa>
+ 80030c2:	4a13      	ldr	r2, [pc, #76]	@ (8003110 <HAL_ADC_ConfigChannel+0x844>)
+ 80030c4:	e000      	b.n	80030c8 <HAL_ADC_ConfigChannel+0x7fc>
+ 80030c6:	4a0e      	ldr	r2, [pc, #56]	@ (8003100 <HAL_ADC_ConfigChannel+0x834>)
+                                         LL_ADC_PATH_INTERNAL_VREFINT | tmp_config_internal_channel);
+ 80030c8:	f8d7 30c4 	ldr.w	r3, [r7, #196]	@ 0xc4
+ 80030cc:	f443 0380 	orr.w	r3, r3, #4194304	@ 0x400000
+          LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(hadc->Instance),
+ 80030d0:	4619      	mov	r1, r3
+ 80030d2:	4610      	mov	r0, r2
+ 80030d4:	f7fe fdf9 	bl	8001cca <LL_ADC_SetCommonPathInternalCh>
+ 80030d8:	e008      	b.n	80030ec <HAL_ADC_ConfigChannel+0x820>
+>>>>>>> Stashed changes
   /* channel could be done on neither of the channel configuration structure  */
   /* parameters.                                                              */
   else
@@ -10512,12 +10708,21 @@ HAL_StatusTypeDef HAL_FDCAN_GetRxMessage(FDCAN_HandleTypeDef *hfdcan, uint32_t R
  8003f5e:	2301      	movs	r3, #1
   }
 }
+<<<<<<< Updated upstream
  8003f60:	4618      	mov	r0, r3
  8003f62:	372c      	adds	r7, #44	@ 0x2c
  8003f64:	46bd      	mov	sp, r7
  8003f66:	f85d 7b04 	ldr.w	r7, [sp], #4
  8003f6a:	4770      	bx	lr
  8003f6c:	08009afc 	.word	0x08009afc
+=======
+ 8004058:	4618      	mov	r0, r3
+ 800405a:	372c      	adds	r7, #44	@ 0x2c
+ 800405c:	46bd      	mov	sp, r7
+ 800405e:	f85d 7b04 	ldr.w	r7, [sp], #4
+ 8004062:	4770      	bx	lr
+ 8004064:	08008d74 	.word	0x08008d74
+>>>>>>> Stashed changes
 
 08003f70 <HAL_FDCAN_ActivateNotification>:
   *           - FDCAN_IT_TX_ABORT_COMPLETE
@@ -11823,6 +12028,7 @@ static void FDCAN_CopyMessageToRAM(const FDCAN_HandleTypeDef *hfdcan, const FDCA
  8004608:	d3d6      	bcc.n	80045b8 <FDCAN_CopyMessageToRAM+0x94>
   }
 }
+<<<<<<< Updated upstream
  800460a:	bf00      	nop
  800460c:	bf00      	nop
  800460e:	3724      	adds	r7, #36	@ 0x24
@@ -11830,6 +12036,15 @@ static void FDCAN_CopyMessageToRAM(const FDCAN_HandleTypeDef *hfdcan, const FDCA
  8004612:	f85d 7b04 	ldr.w	r7, [sp], #4
  8004616:	4770      	bx	lr
  8004618:	08009afc 	.word	0x08009afc
+=======
+ 80047c6:	bf00      	nop
+ 80047c8:	bf00      	nop
+ 80047ca:	3724      	adds	r7, #36	@ 0x24
+ 80047cc:	46bd      	mov	sp, r7
+ 80047ce:	f85d 7b04 	ldr.w	r7, [sp], #4
+ 80047d2:	4770      	bx	lr
+ 80047d4:	08008d74 	.word	0x08008d74
+>>>>>>> Stashed changes
 
 0800461c <HAL_GPIO_Init>:
   * @param  GPIO_Init pointer to a GPIO_InitTypeDef structure that contains
@@ -14114,6 +14329,7 @@ HAL_StatusTypeDef HAL_RCC_ClockConfig(RCC_ClkInitTypeDef  *RCC_ClkInitStruct, ui
  8005360:	f7fc fc3c 	bl	8001bdc <HAL_InitTick>
  8005364:	4603      	mov	r3, r0
 }
+<<<<<<< Updated upstream
  8005366:	4618      	mov	r0, r3
  8005368:	3718      	adds	r7, #24
  800536a:	46bd      	mov	sp, r7
@@ -14125,6 +14341,19 @@ HAL_StatusTypeDef HAL_RCC_ClockConfig(RCC_ClkInitTypeDef  *RCC_ClkInitStruct, ui
  800537c:	08009aec 	.word	0x08009aec
  8005380:	20000018 	.word	0x20000018
  8005384:	2000001c 	.word	0x2000001c
+=======
+ 8005522:	4618      	mov	r0, r3
+ 8005524:	3718      	adds	r7, #24
+ 8005526:	46bd      	mov	sp, r7
+ 8005528:	bd80      	pop	{r7, pc}
+ 800552a:	bf00      	nop
+ 800552c:	40022000 	.word	0x40022000
+ 8005530:	40021000 	.word	0x40021000
+ 8005534:	04c4b400 	.word	0x04c4b400
+ 8005538:	08008d64 	.word	0x08008d64
+ 800553c:	20000020 	.word	0x20000020
+ 8005540:	20000024 	.word	0x20000024
+>>>>>>> Stashed changes
 
 08005388 <HAL_RCC_GetSysClockFreq>:
   *
@@ -19210,6 +19439,7 @@ BaseType_t xReturn;
  8006dea:	bf00      	nop
  8006dec:	e7fd      	b.n	8006dea <vTaskStartScheduler+0xaa>
 }
+<<<<<<< Updated upstream
  8006dee:	bf00      	nop
  8006df0:	3718      	adds	r7, #24
  8006df2:	46bd      	mov	sp, r7
@@ -19221,6 +19451,19 @@ BaseType_t xReturn;
  8006e04:	20001ad8 	.word	0x20001ad8
  8006e08:	20001ac4 	.word	0x20001ac4
  8006e0c:	20001abc 	.word	0x20001abc
+=======
+ 8006faa:	bf00      	nop
+ 8006fac:	3718      	adds	r7, #24
+ 8006fae:	46bd      	mov	sp, r7
+ 8006fb0:	bd80      	pop	{r7, pc}
+ 8006fb2:	bf00      	nop
+ 8006fb4:	08008c4c 	.word	0x08008c4c
+ 8006fb8:	080075ed 	.word	0x080075ed
+ 8006fbc:	20001b9c 	.word	0x20001b9c
+ 8006fc0:	20001b98 	.word	0x20001b98
+ 8006fc4:	20001b84 	.word	0x20001b84
+ 8006fc8:	20001b7c 	.word	0x20001b7c
+>>>>>>> Stashed changes
 
 08006e10 <vTaskSuspendAll>:
 	vPortEndScheduler();
@@ -21101,6 +21344,7 @@ BaseType_t xReturn = pdFAIL;
 	return xReturn;
  8007818:	697b      	ldr	r3, [r7, #20]
 }
+<<<<<<< Updated upstream
  800781a:	4618      	mov	r0, r3
  800781c:	3718      	adds	r7, #24
  800781e:	46bd      	mov	sp, r7
@@ -21110,6 +21354,17 @@ BaseType_t xReturn = pdFAIL;
  8007828:	080099dc 	.word	0x080099dc
  800782c:	0800796d 	.word	0x0800796d
  8007830:	20001b18 	.word	0x20001b18
+=======
+ 80079d6:	4618      	mov	r0, r3
+ 80079d8:	3718      	adds	r7, #24
+ 80079da:	46bd      	mov	sp, r7
+ 80079dc:	bd80      	pop	{r7, pc}
+ 80079de:	bf00      	nop
+ 80079e0:	20001bd4 	.word	0x20001bd4
+ 80079e4:	08008c54 	.word	0x08008c54
+ 80079e8:	08007b29 	.word	0x08007b29
+ 80079ec:	20001bd8 	.word	0x20001bd8
+>>>>>>> Stashed changes
 
 08007834 <xTimerGenericCommand>:
 	}
@@ -22205,6 +22460,7 @@ static void prvCheckForValidListAndQueue( void )
 	taskEXIT_CRITICAL();
  8007e28:	f000 f978 	bl	800811c <vPortExitCritical>
 }
+<<<<<<< Updated upstream
  8007e2c:	bf00      	nop
  8007e2e:	46bd      	mov	sp, r7
  8007e30:	bd80      	pop	{r7, pc}
@@ -22217,6 +22473,20 @@ static void prvCheckForValidListAndQueue( void )
  8007e48:	20001bc0 	.word	0x20001bc0
  8007e4c:	20001b20 	.word	0x20001b20
  8007e50:	080099e4 	.word	0x080099e4
+=======
+ 8007fe8:	bf00      	nop
+ 8007fea:	46bd      	mov	sp, r7
+ 8007fec:	bd80      	pop	{r7, pc}
+ 8007fee:	bf00      	nop
+ 8007ff0:	20001bd4 	.word	0x20001bd4
+ 8007ff4:	20001ba4 	.word	0x20001ba4
+ 8007ff8:	20001bb8 	.word	0x20001bb8
+ 8007ffc:	20001bcc 	.word	0x20001bcc
+ 8008000:	20001bd0 	.word	0x20001bd0
+ 8008004:	20001c80 	.word	0x20001c80
+ 8008008:	20001be0 	.word	0x20001be0
+ 800800c:	08008c5c 	.word	0x08008c5c
+>>>>>>> Stashed changes
 
 08007e54 <pxPortInitialiseStack>:
 
@@ -22770,6 +23040,7 @@ void xPortPendSVHandler( void )
 	/* This is a naked function. */
 
 	__asm volatile
+<<<<<<< Updated upstream
  8008170:	f3ef 8009 	mrs	r0, PSP
  8008174:	f3bf 8f6f 	isb	sy
  8008178:	4b15      	ldr	r3, [pc, #84]	@ (80081d0 <pxCurrentTCBConst>)
@@ -22799,6 +23070,37 @@ void xPortPendSVHandler( void )
  80081c8:	4770      	bx	lr
  80081ca:	bf00      	nop
  80081cc:	f3af 8000 	nop.w
+=======
+ 8008330:	f3ef 8009 	mrs	r0, PSP
+ 8008334:	f3bf 8f6f 	isb	sy
+ 8008338:	4b15      	ldr	r3, [pc, #84]	@ (8008390 <pxCurrentTCBConst>)
+ 800833a:	681a      	ldr	r2, [r3, #0]
+ 800833c:	f01e 0f10 	tst.w	lr, #16
+ 8008340:	bf08      	it	eq
+ 8008342:	ed20 8a10 	vstmdbeq	r0!, {s16-s31}
+ 8008346:	e920 4ff0 	stmdb	r0!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+ 800834a:	6010      	str	r0, [r2, #0]
+ 800834c:	b409      	push	{r0, r3}
+ 800834e:	f04f 0050 	mov.w	r0, #80	@ 0x50
+ 8008352:	f380 8811 	msr	BASEPRI, r0
+ 8008356:	f3bf 8f4f 	dsb	sy
+ 800835a:	f3bf 8f6f 	isb	sy
+ 800835e:	f7fe ffab 	bl	80072b8 <vTaskSwitchContext>
+ 8008362:	f04f 0000 	mov.w	r0, #0
+ 8008366:	f380 8811 	msr	BASEPRI, r0
+ 800836a:	bc09      	pop	{r0, r3}
+ 800836c:	6819      	ldr	r1, [r3, #0]
+ 800836e:	6808      	ldr	r0, [r1, #0]
+ 8008370:	e8b0 4ff0 	ldmia.w	r0!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+ 8008374:	f01e 0f10 	tst.w	lr, #16
+ 8008378:	bf08      	it	eq
+ 800837a:	ecb0 8a10 	vldmiaeq	r0!, {s16-s31}
+ 800837e:	f380 8809 	msr	PSP, r0
+ 8008382:	f3bf 8f6f 	isb	sy
+ 8008386:	4770      	bx	lr
+ 8008388:	f3af 8000 	nop.w
+ 800838c:	f3af 8000 	nop.w
+>>>>>>> Stashed changes
 
 080081d0 <pxCurrentTCBConst>:
  80081d0:	200015e4 	.word	0x200015e4
@@ -23829,6 +24131,7 @@ uint8_t *puc;
  80087b8:	08008957 	.word	0x08008957
  80087bc:	20002838 	.word	0x20002838
 
+<<<<<<< Updated upstream
 080087c0 <stdio_exit_handler>:
  80087c0:	4a02      	ldr	r2, [pc, #8]	@ (80087cc <stdio_exit_handler+0xc>)
  80087c2:	4903      	ldr	r1, [pc, #12]	@ (80087d0 <stdio_exit_handler+0x10>)
@@ -23838,6 +24141,38 @@ uint8_t *puc;
  80087cc:	20000028 	.word	0x20000028
  80087d0:	08008db9 	.word	0x08008db9
  80087d4:	20000038 	.word	0x20000038
+=======
+080088b4 <__libc_init_array>:
+ 80088b4:	b570      	push	{r4, r5, r6, lr}
+ 80088b6:	4b0d      	ldr	r3, [pc, #52]	@ (80088ec <__libc_init_array+0x38>)
+ 80088b8:	4d0d      	ldr	r5, [pc, #52]	@ (80088f0 <__libc_init_array+0x3c>)
+ 80088ba:	1b5b      	subs	r3, r3, r5
+ 80088bc:	109c      	asrs	r4, r3, #2
+ 80088be:	2600      	movs	r6, #0
+ 80088c0:	42a6      	cmp	r6, r4
+ 80088c2:	d109      	bne.n	80088d8 <__libc_init_array+0x24>
+ 80088c4:	f000 f99c 	bl	8008c00 <_init>
+ 80088c8:	4d0a      	ldr	r5, [pc, #40]	@ (80088f4 <__libc_init_array+0x40>)
+ 80088ca:	4b0b      	ldr	r3, [pc, #44]	@ (80088f8 <__libc_init_array+0x44>)
+ 80088cc:	1b5b      	subs	r3, r3, r5
+ 80088ce:	109c      	asrs	r4, r3, #2
+ 80088d0:	2600      	movs	r6, #0
+ 80088d2:	42a6      	cmp	r6, r4
+ 80088d4:	d105      	bne.n	80088e2 <__libc_init_array+0x2e>
+ 80088d6:	bd70      	pop	{r4, r5, r6, pc}
+ 80088d8:	f855 3b04 	ldr.w	r3, [r5], #4
+ 80088dc:	4798      	blx	r3
+ 80088de:	3601      	adds	r6, #1
+ 80088e0:	e7ee      	b.n	80088c0 <__libc_init_array+0xc>
+ 80088e2:	f855 3b04 	ldr.w	r3, [r5], #4
+ 80088e6:	4798      	blx	r3
+ 80088e8:	3601      	adds	r6, #1
+ 80088ea:	e7f2      	b.n	80088d2 <__libc_init_array+0x1e>
+ 80088ec:	08008d88 	.word	0x08008d88
+ 80088f0:	08008d88 	.word	0x08008d88
+ 80088f4:	08008d88 	.word	0x08008d88
+ 80088f8:	08008d8c 	.word	0x08008d8c
+>>>>>>> Stashed changes
 
 080087d8 <cleanup_stdio>:
  80087d8:	6841      	ldr	r1, [r0, #4]
@@ -23866,6 +24201,7 @@ uint8_t *puc;
  8008810:	200028a0 	.word	0x200028a0
  8008814:	20002908 	.word	0x20002908
 
+<<<<<<< Updated upstream
 08008818 <global_stdio_init.part.0>:
  8008818:	b510      	push	{r4, lr}
  800881a:	4b0b      	ldr	r3, [pc, #44]	@ (8008848 <global_stdio_init.part.0+0x30>)
@@ -25750,3 +26086,252 @@ uint8_t *puc;
  800997e:	bc08      	pop	{r3}
  8009980:	469e      	mov	lr, r3
  8009982:	4770      	bx	lr
+=======
+08008918 <logf>:
+ 8008918:	b508      	push	{r3, lr}
+ 800891a:	ed2d 8b02 	vpush	{d8}
+ 800891e:	eeb0 8a40 	vmov.f32	s16, s0
+ 8008922:	f000 f873 	bl	8008a0c <__ieee754_logf>
+ 8008926:	eeb4 8a48 	vcmp.f32	s16, s16
+ 800892a:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 800892e:	d60f      	bvs.n	8008950 <logf+0x38>
+ 8008930:	eeb5 8ac0 	vcmpe.f32	s16, #0.0
+ 8008934:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 8008938:	dc0a      	bgt.n	8008950 <logf+0x38>
+ 800893a:	eeb5 8a40 	vcmp.f32	s16, #0.0
+ 800893e:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 8008942:	d108      	bne.n	8008956 <logf+0x3e>
+ 8008944:	f7ff ffb0 	bl	80088a8 <__errno>
+ 8008948:	2322      	movs	r3, #34	@ 0x22
+ 800894a:	ed9f 0a09 	vldr	s0, [pc, #36]	@ 8008970 <logf+0x58>
+ 800894e:	6003      	str	r3, [r0, #0]
+ 8008950:	ecbd 8b02 	vpop	{d8}
+ 8008954:	bd08      	pop	{r3, pc}
+ 8008956:	f7ff ffa7 	bl	80088a8 <__errno>
+ 800895a:	ecbd 8b02 	vpop	{d8}
+ 800895e:	4603      	mov	r3, r0
+ 8008960:	2221      	movs	r2, #33	@ 0x21
+ 8008962:	601a      	str	r2, [r3, #0]
+ 8008964:	4803      	ldr	r0, [pc, #12]	@ (8008974 <logf+0x5c>)
+ 8008966:	e8bd 4008 	ldmia.w	sp!, {r3, lr}
+ 800896a:	f000 b805 	b.w	8008978 <nanf>
+ 800896e:	bf00      	nop
+ 8008970:	ff800000 	.word	0xff800000
+ 8008974:	08008d84 	.word	0x08008d84
+
+08008978 <nanf>:
+ 8008978:	ed9f 0a01 	vldr	s0, [pc, #4]	@ 8008980 <nanf+0x8>
+ 800897c:	4770      	bx	lr
+ 800897e:	bf00      	nop
+ 8008980:	7fc00000 	.word	0x7fc00000
+
+08008984 <fmaxf>:
+ 8008984:	b508      	push	{r3, lr}
+ 8008986:	ed2d 8b02 	vpush	{d8}
+ 800898a:	eef0 8a40 	vmov.f32	s17, s0
+ 800898e:	eeb0 8a60 	vmov.f32	s16, s1
+ 8008992:	f000 f81f 	bl	80089d4 <__fpclassifyf>
+ 8008996:	b920      	cbnz	r0, 80089a2 <fmaxf+0x1e>
+ 8008998:	eeb0 0a48 	vmov.f32	s0, s16
+ 800899c:	ecbd 8b02 	vpop	{d8}
+ 80089a0:	bd08      	pop	{r3, pc}
+ 80089a2:	eeb0 0a48 	vmov.f32	s0, s16
+ 80089a6:	f000 f815 	bl	80089d4 <__fpclassifyf>
+ 80089aa:	b158      	cbz	r0, 80089c4 <fmaxf+0x40>
+ 80089ac:	eef4 8ac8 	vcmpe.f32	s17, s16
+ 80089b0:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 80089b4:	bfc8      	it	gt
+ 80089b6:	eeb0 8a68 	vmovgt.f32	s16, s17
+ 80089ba:	eeb0 0a48 	vmov.f32	s0, s16
+ 80089be:	ecbd 8b02 	vpop	{d8}
+ 80089c2:	bd08      	pop	{r3, pc}
+ 80089c4:	eeb0 8a68 	vmov.f32	s16, s17
+ 80089c8:	eeb0 0a48 	vmov.f32	s0, s16
+ 80089cc:	ecbd 8b02 	vpop	{d8}
+ 80089d0:	bd08      	pop	{r3, pc}
+ 80089d2:	bf00      	nop
+
+080089d4 <__fpclassifyf>:
+ 80089d4:	ee10 3a10 	vmov	r3, s0
+ 80089d8:	f033 4000 	bics.w	r0, r3, #2147483648	@ 0x80000000
+ 80089dc:	d00e      	beq.n	80089fc <__fpclassifyf+0x28>
+ 80089de:	f5a0 0300 	sub.w	r3, r0, #8388608	@ 0x800000
+ 80089e2:	f1b3 4ffe 	cmp.w	r3, #2130706432	@ 0x7f000000
+ 80089e6:	d30d      	bcc.n	8008a04 <__fpclassifyf+0x30>
+ 80089e8:	4b07      	ldr	r3, [pc, #28]	@ (8008a08 <__fpclassifyf+0x34>)
+ 80089ea:	1e42      	subs	r2, r0, #1
+ 80089ec:	429a      	cmp	r2, r3
+ 80089ee:	d907      	bls.n	8008a00 <__fpclassifyf+0x2c>
+ 80089f0:	f1a0 40ff 	sub.w	r0, r0, #2139095040	@ 0x7f800000
+ 80089f4:	fab0 f080 	clz	r0, r0
+ 80089f8:	0940      	lsrs	r0, r0, #5
+ 80089fa:	4770      	bx	lr
+ 80089fc:	2002      	movs	r0, #2
+ 80089fe:	4770      	bx	lr
+ 8008a00:	2003      	movs	r0, #3
+ 8008a02:	4770      	bx	lr
+ 8008a04:	2004      	movs	r0, #4
+ 8008a06:	4770      	bx	lr
+ 8008a08:	007ffffe 	.word	0x007ffffe
+
+08008a0c <__ieee754_logf>:
+ 8008a0c:	ee10 2a10 	vmov	r2, s0
+ 8008a10:	f032 4300 	bics.w	r3, r2, #2147483648	@ 0x80000000
+ 8008a14:	d02f      	beq.n	8008a76 <__ieee754_logf+0x6a>
+ 8008a16:	2a00      	cmp	r2, #0
+ 8008a18:	4613      	mov	r3, r2
+ 8008a1a:	db33      	blt.n	8008a84 <__ieee754_logf+0x78>
+ 8008a1c:	f1b2 4fff 	cmp.w	r2, #2139095040	@ 0x7f800000
+ 8008a20:	da40      	bge.n	8008aa4 <__ieee754_logf+0x98>
+ 8008a22:	f5b2 0f00 	cmp.w	r2, #8388608	@ 0x800000
+ 8008a26:	db34      	blt.n	8008a92 <__ieee754_logf+0x86>
+ 8008a28:	f04f 0c00 	mov.w	ip, #0
+ 8008a2c:	4864      	ldr	r0, [pc, #400]	@ (8008bc0 <__ieee754_logf+0x1b4>)
+ 8008a2e:	f3c3 0116 	ubfx	r1, r3, #0, #23
+ 8008a32:	4408      	add	r0, r1
+ 8008a34:	f400 0200 	and.w	r2, r0, #8388608	@ 0x800000
+ 8008a38:	f082 527e 	eor.w	r2, r2, #1065353216	@ 0x3f800000
+ 8008a3c:	430a      	orrs	r2, r1
+ 8008a3e:	15db      	asrs	r3, r3, #23
+ 8008a40:	ee00 2a10 	vmov	s0, r2
+ 8008a44:	3b7f      	subs	r3, #127	@ 0x7f
+ 8008a46:	4a5f      	ldr	r2, [pc, #380]	@ (8008bc4 <__ieee754_logf+0x1b8>)
+ 8008a48:	4463      	add	r3, ip
+ 8008a4a:	f101 0c0f 	add.w	ip, r1, #15
+ 8008a4e:	eef7 7a00 	vmov.f32	s15, #112	@ 0x3f800000  1.0
+ 8008a52:	ea0c 0202 	and.w	r2, ip, r2
+ 8008a56:	ee30 0a67 	vsub.f32	s0, s0, s15
+ 8008a5a:	eb03 53d0 	add.w	r3, r3, r0, lsr #23
+ 8008a5e:	bb22      	cbnz	r2, 8008aaa <__ieee754_logf+0x9e>
+ 8008a60:	eeb5 0a40 	vcmp.f32	s0, #0.0
+ 8008a64:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 8008a68:	d162      	bne.n	8008b30 <__ieee754_logf+0x124>
+ 8008a6a:	2b00      	cmp	r3, #0
+ 8008a6c:	f040 8090 	bne.w	8008b90 <__ieee754_logf+0x184>
+ 8008a70:	ed9f 0a55 	vldr	s0, [pc, #340]	@ 8008bc8 <__ieee754_logf+0x1bc>
+ 8008a74:	4770      	bx	lr
+ 8008a76:	ed9f 7a55 	vldr	s14, [pc, #340]	@ 8008bcc <__ieee754_logf+0x1c0>
+ 8008a7a:	eddf 7a53 	vldr	s15, [pc, #332]	@ 8008bc8 <__ieee754_logf+0x1bc>
+ 8008a7e:	ee87 0a27 	vdiv.f32	s0, s14, s15
+ 8008a82:	4770      	bx	lr
+ 8008a84:	ee70 7a40 	vsub.f32	s15, s0, s0
+ 8008a88:	ed9f 7a4f 	vldr	s14, [pc, #316]	@ 8008bc8 <__ieee754_logf+0x1bc>
+ 8008a8c:	ee87 0a87 	vdiv.f32	s0, s15, s14
+ 8008a90:	4770      	bx	lr
+ 8008a92:	eddf 7a4f 	vldr	s15, [pc, #316]	@ 8008bd0 <__ieee754_logf+0x1c4>
+ 8008a96:	ee60 7a27 	vmul.f32	s15, s0, s15
+ 8008a9a:	f06f 0c18 	mvn.w	ip, #24
+ 8008a9e:	ee17 3a90 	vmov	r3, s15
+ 8008aa2:	e7c3      	b.n	8008a2c <__ieee754_logf+0x20>
+ 8008aa4:	ee30 0a00 	vadd.f32	s0, s0, s0
+ 8008aa8:	4770      	bx	lr
+ 8008aaa:	eef0 7a00 	vmov.f32	s15, #0	@ 0x40000000  2.0
+ 8008aae:	ee70 7a27 	vadd.f32	s15, s0, s15
+ 8008ab2:	ee07 3a10 	vmov	s14, r3
+ 8008ab6:	ee80 4a27 	vdiv.f32	s8, s0, s15
+ 8008aba:	4846      	ldr	r0, [pc, #280]	@ (8008bd4 <__ieee754_logf+0x1c8>)
+ 8008abc:	f5c1 1257 	rsb	r2, r1, #3522560	@ 0x35c000
+ 8008ac0:	4408      	add	r0, r1
+ 8008ac2:	f502 7222 	add.w	r2, r2, #648	@ 0x288
+ 8008ac6:	4302      	orrs	r2, r0
+ 8008ac8:	2a00      	cmp	r2, #0
+ 8008aca:	ed9f 3a43 	vldr	s6, [pc, #268]	@ 8008bd8 <__ieee754_logf+0x1cc>
+ 8008ace:	eddf 4a43 	vldr	s9, [pc, #268]	@ 8008bdc <__ieee754_logf+0x1d0>
+ 8008ad2:	eddf 5a43 	vldr	s11, [pc, #268]	@ 8008be0 <__ieee754_logf+0x1d4>
+ 8008ad6:	eddf 3a43 	vldr	s7, [pc, #268]	@ 8008be4 <__ieee754_logf+0x1d8>
+ 8008ada:	ed9f 5a43 	vldr	s10, [pc, #268]	@ 8008be8 <__ieee754_logf+0x1dc>
+ 8008ade:	eddf 7a43 	vldr	s15, [pc, #268]	@ 8008bec <__ieee754_logf+0x1e0>
+ 8008ae2:	eddf 6a43 	vldr	s13, [pc, #268]	@ 8008bf0 <__ieee754_logf+0x1e4>
+ 8008ae6:	ee24 6a04 	vmul.f32	s12, s8, s8
+ 8008aea:	eef8 2ac7 	vcvt.f32.s32	s5, s14
+ 8008aee:	ee26 7a06 	vmul.f32	s14, s12, s12
+ 8008af2:	eee7 4a03 	vfma.f32	s9, s14, s6
+ 8008af6:	eea7 5a23 	vfma.f32	s10, s14, s7
+ 8008afa:	eee4 5a87 	vfma.f32	s11, s9, s14
+ 8008afe:	eee5 6a07 	vfma.f32	s13, s10, s14
+ 8008b02:	eee5 7a87 	vfma.f32	s15, s11, s14
+ 8008b06:	ee67 7a86 	vmul.f32	s15, s15, s12
+ 8008b0a:	eee6 7a87 	vfma.f32	s15, s13, s14
+ 8008b0e:	dd2a      	ble.n	8008b66 <__ieee754_logf+0x15a>
+ 8008b10:	eeb6 7a00 	vmov.f32	s14, #96	@ 0x3f000000  0.5
+ 8008b14:	ee20 7a07 	vmul.f32	s14, s0, s14
+ 8008b18:	ee27 7a00 	vmul.f32	s14, s14, s0
+ 8008b1c:	ee77 7a87 	vadd.f32	s15, s15, s14
+ 8008b20:	ee67 7a84 	vmul.f32	s15, s15, s8
+ 8008b24:	bb3b      	cbnz	r3, 8008b76 <__ieee754_logf+0x16a>
+ 8008b26:	ee37 7a67 	vsub.f32	s14, s14, s15
+ 8008b2a:	ee30 0a47 	vsub.f32	s0, s0, s14
+ 8008b2e:	4770      	bx	lr
+ 8008b30:	ed9f 7a30 	vldr	s14, [pc, #192]	@ 8008bf4 <__ieee754_logf+0x1e8>
+ 8008b34:	eef6 7a00 	vmov.f32	s15, #96	@ 0x3f000000  0.5
+ 8008b38:	eee0 7a47 	vfms.f32	s15, s0, s14
+ 8008b3c:	ee20 7a00 	vmul.f32	s14, s0, s0
+ 8008b40:	ee27 7a27 	vmul.f32	s14, s14, s15
+ 8008b44:	2b00      	cmp	r3, #0
+ 8008b46:	d0f0      	beq.n	8008b2a <__ieee754_logf+0x11e>
+ 8008b48:	ee07 3a90 	vmov	s15, r3
+ 8008b4c:	ed9f 6a2a 	vldr	s12, [pc, #168]	@ 8008bf8 <__ieee754_logf+0x1ec>
+ 8008b50:	eddf 6a2a 	vldr	s13, [pc, #168]	@ 8008bfc <__ieee754_logf+0x1f0>
+ 8008b54:	eef8 7ae7 	vcvt.f32.s32	s15, s15
+ 8008b58:	eea7 7ac6 	vfms.f32	s14, s15, s12
+ 8008b5c:	ee37 0a40 	vsub.f32	s0, s14, s0
+ 8008b60:	ee97 0aa6 	vfnms.f32	s0, s15, s13
+ 8008b64:	4770      	bx	lr
+ 8008b66:	ee70 7a67 	vsub.f32	s15, s0, s15
+ 8008b6a:	ee67 7a84 	vmul.f32	s15, s15, s8
+ 8008b6e:	b9e3      	cbnz	r3, 8008baa <__ieee754_logf+0x19e>
+ 8008b70:	ee30 0a67 	vsub.f32	s0, s0, s15
+ 8008b74:	4770      	bx	lr
+ 8008b76:	ed9f 6a20 	vldr	s12, [pc, #128]	@ 8008bf8 <__ieee754_logf+0x1ec>
+ 8008b7a:	eddf 6a20 	vldr	s13, [pc, #128]	@ 8008bfc <__ieee754_logf+0x1f0>
+ 8008b7e:	eee2 7a86 	vfma.f32	s15, s5, s12
+ 8008b82:	ee37 7a67 	vsub.f32	s14, s14, s15
+ 8008b86:	ee37 0a40 	vsub.f32	s0, s14, s0
+ 8008b8a:	ee92 0aa6 	vfnms.f32	s0, s5, s13
+ 8008b8e:	4770      	bx	lr
+ 8008b90:	ee07 3a90 	vmov	s15, r3
+ 8008b94:	ed9f 0a18 	vldr	s0, [pc, #96]	@ 8008bf8 <__ieee754_logf+0x1ec>
+ 8008b98:	ed9f 7a18 	vldr	s14, [pc, #96]	@ 8008bfc <__ieee754_logf+0x1f0>
+ 8008b9c:	eef8 7ae7 	vcvt.f32.s32	s15, s15
+ 8008ba0:	ee27 0a80 	vmul.f32	s0, s15, s0
+ 8008ba4:	eea7 0a87 	vfma.f32	s0, s15, s14
+ 8008ba8:	4770      	bx	lr
+ 8008baa:	eddf 6a13 	vldr	s13, [pc, #76]	@ 8008bf8 <__ieee754_logf+0x1ec>
+ 8008bae:	ed9f 7a13 	vldr	s14, [pc, #76]	@ 8008bfc <__ieee754_logf+0x1f0>
+ 8008bb2:	eee2 7ae6 	vfms.f32	s15, s5, s13
+ 8008bb6:	ee37 0ac0 	vsub.f32	s0, s15, s0
+ 8008bba:	ee92 0a87 	vfnms.f32	s0, s5, s14
+ 8008bbe:	4770      	bx	lr
+ 8008bc0:	004afb20 	.word	0x004afb20
+ 8008bc4:	007ffff0 	.word	0x007ffff0
+ 8008bc8:	00000000 	.word	0x00000000
+ 8008bcc:	cc000000 	.word	0xcc000000
+ 8008bd0:	4c000000 	.word	0x4c000000
+ 8008bd4:	ffcf5c30 	.word	0xffcf5c30
+ 8008bd8:	3e178897 	.word	0x3e178897
+ 8008bdc:	3e3a3325 	.word	0x3e3a3325
+ 8008be0:	3e924925 	.word	0x3e924925
+ 8008be4:	3e1cd04f 	.word	0x3e1cd04f
+ 8008be8:	3e638e29 	.word	0x3e638e29
+ 8008bec:	3f2aaaab 	.word	0x3f2aaaab
+ 8008bf0:	3ecccccd 	.word	0x3ecccccd
+ 8008bf4:	3eaaaaab 	.word	0x3eaaaaab
+ 8008bf8:	3717f7d1 	.word	0x3717f7d1
+ 8008bfc:	3f317180 	.word	0x3f317180
+
+08008c00 <_init>:
+ 8008c00:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 8008c02:	bf00      	nop
+ 8008c04:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 8008c06:	bc08      	pop	{r3}
+ 8008c08:	469e      	mov	lr, r3
+ 8008c0a:	4770      	bx	lr
+
+08008c0c <_fini>:
+ 8008c0c:	b5f8      	push	{r3, r4, r5, r6, r7, lr}
+ 8008c0e:	bf00      	nop
+ 8008c10:	bcf8      	pop	{r3, r4, r5, r6, r7}
+ 8008c12:	bc08      	pop	{r3}
+ 8008c14:	469e      	mov	lr, r3
+ 8008c16:	4770      	bx	lr
+>>>>>>> Stashed changes
