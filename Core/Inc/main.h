@@ -59,8 +59,10 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define shutdownPin_Pin GPIO_PIN_7
 #define shutdownPin_GPIO_Port GPIOC
-#define userLED_Pin GPIO_PIN_8
-#define userLED_GPIO_Port GPIOC
+#define USER_LEDR_Pin GPIO_PIN_8
+#define USER_LEDR_GPIO_Port GPIOC
+#define USER_LEDY_Pin GPIO_PIN_9
+#define USER_LEDY_GPIO_Port GPIOC
 #define T_SWDIO_Pin GPIO_PIN_13
 #define T_SWDIO_GPIO_Port GPIOA
 #define T_SWCLK_Pin GPIO_PIN_14
