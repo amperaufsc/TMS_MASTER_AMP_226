@@ -659,7 +659,7 @@ void xSendCANFunction(void *argument)
       }
 
 	  /* Send Master status and maximum temperatures to CAN2 */
-//	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);
+//	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);//maneuestupreiomichels
 
 #ifdef testLoopbackCAN1
 	  /* Generate artificial slave traffic if loopback testing is enabled */
