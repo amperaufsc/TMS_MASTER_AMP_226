@@ -4,10 +4,10 @@
 ../Core/Src/stm32g4xx_it.c:119:6:BusFault_Handler	1
 ../Core/Src/stm32g4xx_it.c:134:6:UsageFault_Handler	1
 ../Core/Src/stm32g4xx_it.c:149:6:DebugMon_Handler	1
-../Core/Src/stm32g4xx_it.c:162:6:SysTick_Handler	2
-../Core/Src/stm32g4xx_it.c:191:6:DMA1_Channel1_IRQHandler	1
-../Core/Src/stm32g4xx_it.c:205:6:ADC1_2_IRQHandler	1
-../Core/Src/stm32g4xx_it.c:219:6:FDCAN1_IT0_IRQHandler	1
-../Core/Src/stm32g4xx_it.c:233:6:FDCAN1_IT1_IRQHandler	1
-../Core/Src/stm32g4xx_it.c:247:6:FDCAN2_IT0_IRQHandler	1
-../Core/Src/stm32g4xx_it.c:261:6:FDCAN2_IT1_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:169:6:DMA1_Channel1_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:183:6:ADC1_2_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:197:6:FDCAN1_IT0_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:211:6:FDCAN1_IT1_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:225:6:TIM7_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:239:6:FDCAN2_IT0_IRQHandler	1
+../Core/Src/stm32g4xx_it.c:253:6:FDCAN2_IT1_IRQHandler	1

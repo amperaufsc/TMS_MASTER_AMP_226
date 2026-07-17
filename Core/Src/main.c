@@ -27,6 +27,8 @@
 #include "adc.h"
 #include <stdbool.h>
 #include "bms_temp_est.h"
+#include <math.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,6 +100,8 @@ extern float slaveTempBuffers[numberOfSlaves][thermistorsRecieved];
 
 extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 
+float maxSentTemps[4] = {0};
+
 uint32_t rawAdcBuffer[numberOfThermistors] = {0}; 
 extern uint16_t filteredAdcBuffer[numberOfThermistors];
 float voltageBuffer[numberOfThermistors] = {0}, tempBuffer[numberOfThermistors] = {0};
@@ -166,11 +170,14 @@ int main(void)
   MX_DMA_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
+  /* eu sou gay */
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   for (int c = 0; c < 40; c++) {
       bmsTempEstInit(&cellTempEstimators[c]);
   }
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, RESET);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -358,11 +365,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Instance = FDCAN1;
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
-#ifdef testLoopbackCAN1
-  hfdcan1.Init.Mode = FDCAN_MODE_EXTERNAL_LOOPBACK;
-#else
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
-#endif
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
@@ -374,7 +377,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 1;
   hfdcan1.Init.DataTimeSeg2 = 1;
-  hfdcan1.Init.StdFiltersNbr = 1;
+  hfdcan1.Init.StdFiltersNbr = 0;
   hfdcan1.Init.ExtFiltersNbr = 0;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
@@ -426,11 +429,7 @@ static void MX_FDCAN2_Init(void)
   hfdcan2.Instance = FDCAN2;
   hfdcan2.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan2.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
-#ifdef testLoopbackCAN2
-  hfdcan2.Init.Mode = FDCAN_MODE_EXTERNAL_LOOPBACK;
-#else
   hfdcan2.Init.Mode = FDCAN_MODE_NORMAL;
-#endif
   hfdcan2.Init.AutoRetransmission = DISABLE;
   hfdcan2.Init.TransmitPause = DISABLE;
   hfdcan2.Init.ProtocolException = DISABLE;
@@ -464,13 +463,25 @@ static void MX_FDCAN2_Init(void)
 	  Error_Handler();
   }
 
+//  FDCAN_FilterTypeDef sStdFilterConfig2;
+//
+//  sStdFilterConfig2.IdType = FDCAN_STANDARD_ID;
+//  sStdFilterConfig2.FilterIndex = 0;
+//  sStdFilterConfig2.FilterType = FDCAN_FILTER_MASK;
+//  sStdFilterConfig2.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+//  sStdFilterConfig2.FilterID1 = 0;
+//  sStdFilterConfig2.FilterID2 = 0;
+//
+//  if (HAL_FDCAN_ConfigFilter(&hfdcan2, &sStdFilterConfig2) != HAL_OK) {
+//	  Error_Handler();
+//  }
+
   HAL_FDCAN_ActivateNotification(&hfdcan2, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
 
   HAL_FDCAN_Start(&hfdcan2);
 
-  FDCAN2TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
-  FDCAN2TxHeader.IdType = FDCAN_EXTENDED_ID;
-  FDCAN2TxHeader.BitRateSwitch = FDCAN_BRS_OFF;
+  /* Note: FDCAN2TxHeader global no longer used — every TX site builds its own
+   * local FDCAN_TxHeaderTypeDef (see can.c::initCan2TxHeader + Error_Handler). */
   /* USER CODE END FDCAN2_Init 2 */
 
 }
@@ -510,10 +521,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, shutdownPin_Pin|userLED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, shutdownPin_Pin|USER_LEDR_Pin|USER_LEDY_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : shutdownPin_Pin userLED_Pin */
-  GPIO_InitStruct.Pin = shutdownPin_Pin|userLED_Pin;
+  /*Configure GPIO pins : shutdownPin_Pin USER_LEDR_Pin USER_LEDY_Pin */
+  GPIO_InitStruct.Pin = shutdownPin_Pin|USER_LEDR_Pin|USER_LEDY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -581,18 +592,23 @@ void xSendCANFunction(void *argument)
 {
   /* USER CODE BEGIN 5 */
   static uint8_t estOvertempCounter = 0;
-  
+
   /* This task manages periodic status transmission and fault checking (10Hz) */
   for(;;)
   {
-	  float maxSentTemps[4] = {0};
+	  memset(maxSentTemps, 0, sizeof(maxSentTemps));
 	  bool anyEstOvertempThisCycle = false;
-	  
+
 	  for(int m = 0; m < 4; m++){
 		  float ntc_max = 0.0f;
-		  // Coleta temperatura max física lida do slave caso ele exista
-		  if(m < numberOfSlaves){
-		  	  ntc_max = findMaxVal(slaveTempBuffers[m]);
+		  // Coleta temperatura max física lida do slave caso ele exista e esteja online
+		  taskENTER_CRITICAL();
+		  bool local_online = slaveOnline[m];
+		  float local_slaveTemps[thermistorsRecieved];
+		  if(local_online) memcpy(local_slaveTemps, slaveTempBuffers[m], sizeof(local_slaveTemps));
+		  taskEXIT_CRITICAL();
+		  if(m < numberOfSlaves && local_online){
+		  	  ntc_max = findMaxVal(local_slaveTemps);
 		  }
 		  // Coleta a estimada via Arrhenius-R_DC (Pega a pior dentre as 10 células do módulo)
 		  float est_module_max = 0.0f;
@@ -605,16 +621,21 @@ void xSendCANFunction(void *argument)
 			      }
 		      }
 		  }
-		  
+
 		  // Funde as temperaturas extraindo a pior possível daquele módulo
 		  maxSentTemps[m] = fmaxf(ntc_max, est_module_max);
 
 		  // Verificação Isolada de Over-Temperature - NTC dispara instantaneamente
+		  if(HAL_GetTick() > 3000){
 		  if(ntc_max > maxTemperatureThresholdNTC) {
+			  taskENTER_CRITICAL();
 			  tmsErrorCode |= overTemperatureFault;
+			  taskEXIT_CRITICAL();
+			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
+			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, SET);
 //			  Error_Handler(); // Trigger Safety Shutdown
 		  }
-		  
+		  }
 		  // Levanta a flag temporária se a estimada violar o teto neste pulso
 		  if(est_module_max > maxTemperatureThresholdEst) {
 		      anyEstOvertempThisCycle = true;
@@ -625,15 +646,20 @@ void xSendCANFunction(void *argument)
 	  if(anyEstOvertempThisCycle) {
           estOvertempCounter++;
           if (estOvertempCounter >= 10) { // Persistiu quente por mais de 10 leituras contínuas (1 segundo)
+              taskENTER_CRITICAL();
               tmsErrorCode |= overTemperatureFaultEst;
-              Error_Handler(); // Trigger Safety Shutdown
+              taskEXIT_CRITICAL();
+              /* Overtemp ESTIMADA: só sinaliza a flag, SEM halt (recuperável). */
           }
       } else {
           estOvertempCounter = 0; // Se a anomalia esfriar/desaparecer antes de 1s, zera o contador
+          taskENTER_CRITICAL();
+          tmsErrorCode &= ~overTemperatureFaultEst; // limpa sozinho ao normalizar
+          taskEXIT_CRITICAL();
       }
 
 	  /* Send Master status and maximum temperatures to CAN2 */
-	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);
+//	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);//maneuestupreiomichels
 
 #ifdef testLoopbackCAN1
 	  /* Generate artificial slave traffic if loopback testing is enabled */
@@ -649,7 +675,7 @@ void xSendCANFunction(void *argument)
 	  injectFault(&maxSentTemps[0]);
 
 	  /* Visual heartbeat for OS health */
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
+	  HAL_GPIO_TogglePin(GPIOC, USER_LEDR_Pin);
     osDelay(100);
   }
   /* USER CODE END 5 */
@@ -677,26 +703,32 @@ void xCheckCommsFuncion(void *argument)
 	  float s_soc = ((float)chargerSOC) / 100.0f;
 	  if(s_soc < 0.0f) s_soc = 0.0f;
 	  if(s_soc > 1.0f) s_soc = 1.0f;
-	  
+
 	  for(int c = 0; c < 40; c++){
 		  bmsTempEstSetSoc(&cellTempEstimators[c], s_soc);
 	  }
 
-	  /* Alimenta o algoritmo (espera Tensao da Celula e Corrente da Célula) 
-	   * O Pack da Ampera 226 possui 8 paralelos. O bmsCurrent global precisa ser 
+	  /* Alimenta o algoritmo (espera Tensao da Celula e Corrente da Célula)
+	   * O Pack da Ampera 226 possui 8 paralelos. O bmsCurrent global precisa ser
 	   * fracionado (bmsCurrent / 8.0f) para o estimador processar a calibração de uma célula unitária P28A.
 	   */
-	  float cellCurrent = bmsCurrent / 8.0f;
-	  
+	  taskENTER_CRITICAL();
+	  float local_bmsCurrent = bmsCurrent;
+	  float local_emusCellVolts[40];
+	  memcpy(local_emusCellVolts, emusCellVolts, sizeof(local_emusCellVolts));
+	  taskEXIT_CRITICAL();
+
+	  float cellCurrent = local_bmsCurrent / 8.0f;
+
 	  /* Passa as 40 voltagens individuais pros 40 estimadores térmicos e salva pro Live Expressions */
 	  for(int c = 0; c < 40; c++){
-		  float cellVolt = emusCellVolts[c];
-		  
+		  float cellVolt = local_emusCellVolts[c];
+
 		  // Filtro profilático, não injeta zero-volts
-		  if(cellVolt > 1.0f) { 
+		  if(cellVolt > 1.0f) {
 		      bmsTempEstFeedSample(&cellTempEstimators[c], cellCurrent, cellVolt);
 		  }
-		  
+
 		  if(bmsTempEstIsValid(&cellTempEstimators[c])) {
 		      debugEstimatedTemps[c] = bmsTempEstGetTemp(&cellTempEstimators[c]);
 		  } else {
@@ -705,10 +737,15 @@ void xCheckCommsFuncion(void *argument)
 	  }
 
 	  /* Verify that each slave has sent data within the last 2 seconds */
+	  taskENTER_CRITICAL();
+	  tmsErrorCode &= ~commFault;
+	  taskEXIT_CRITICAL();
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(atualTick - slaveLastMessageTicks[i] > 2000){
+			  slaveOnline[i] = false;
+			  taskENTER_CRITICAL();
 			  tmsErrorCode |= commFault;
-//			  Error_Handler(); // Trigger Safety Shutdown on lost communication
+			  taskEXIT_CRITICAL();
 		  }
 	  }
     osDelay(10); // Check frequency: 100Hz
@@ -747,6 +784,7 @@ void xReadTempFunction(void *argument)
 		}
 
 		/* Perform signal processing for all 16 simulated channels */
+		bool anyThermFault = false;
 		for (int i = 0; i < numberOfThermistors; i++) {
 
 			/* Step 1: Median Filter (Window 3) — Spikes elimination */
@@ -767,12 +805,15 @@ void xReadTempFunction(void *argument)
 				}
 			}
 			else{
-				/* Critical Sensor Fault: Shut down immediately */
-				thermistorFault = 1;
-				sendReadingErrorInfoIntoCAN();
-				osDelay(5); // Ensure frame is queued before halt
-				Error_Handler();
+				/* Falha de leitura de sensor: marca, mas NÃO faz halt (recuperável). */
+				anyThermFault = true;
 			}
+		}
+		/* thermistorFault reflete o ciclo: seta se algum canal falhou, volta a 0
+		 * sozinho quando todos lerem OK (recupera sem reset). */
+		thermistorFault = anyThermFault ? 1 : 0;
+		if (anyThermFault) {
+			sendReadingErrorInfoIntoCAN();
 		}
 #endif
 		/* Sampling rate: 10Hz */
@@ -782,15 +823,67 @@ void xReadTempFunction(void *argument)
 }
 
 /**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM7 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM7)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
+/**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
-	sendMasterInfoToCAN(0, tmsErrorCode);
-  /* User can add his own implementation to report the HAL error return state */
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, SET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, SET);
+	/* Emergency frame inline — local header avoids race with any other TX site.
+	 * Populate ALL fields explicitly (don't rely on zero-init coincidence). */
+	FDCAN_TxHeaderTypeDef txHeader;
+	uint8_t emergencyData[8] = {0};
+	emergencyData[0] = (uint8_t)tmsErrorCode;
+
+	txHeader.Identifier          = idMasterCAN2;
+	txHeader.IdType              = FDCAN_EXTENDED_ID;
+	txHeader.TxFrameType         = FDCAN_DATA_FRAME;
+	txHeader.DataLength          = FDCAN_DLC_BYTES_8;
+	txHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+	txHeader.BitRateSwitch       = FDCAN_BRS_OFF;
+	txHeader.FDFormat            = FDCAN_CLASSIC_CAN;
+	txHeader.TxEventFifoControl  = FDCAN_NO_TX_EVENTS;
+	txHeader.MessageMarker       = 0;
+
+	/* Retry the enqueue (FIFO may be full — that's likely the very reason we're here).
+	 * Busy-wait instead of osDelay: RTOS may already be in a critical section. */
+	for (uint32_t retry = 0; retry < 100; retry++) {
+		if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &txHeader, emergencyData) == HAL_OK) break;
+		for (volatile int i = 0; i < 17000; i++);  /* ~100 µs at 170 MHz */
+	}
+
+	/* Drain wait: give the periph up to ~50 ms to push the emergency frame onto the wire.
+	 * FDCAN runs autonomously even with IRQs disabled — but we want the frame to actually leave
+	 * before we halt the core (external resets/WDTs may strike). */
+	for (uint32_t waited = 0; waited < 500; waited++) {
+		if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan2) >= 3) break;  /* G4 TX FIFO has 3 slots */
+		for (volatile int i = 0; i < 17000; i++);  /* ~100 µs */
+	}
+
   __disable_irq();
   while (1)
   {
