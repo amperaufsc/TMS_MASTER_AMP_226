@@ -64,8 +64,8 @@ all: main-build
 main-build: TMS_MASTER_AMP_226.elf secondary-outputs
 
 # Tool invocations
-TMS_MASTER_AMP_226.elf TMS_MASTER_AMP_226.map: $(OBJS) $(USER_OBJS) C:\Users\Mari\STM32CubeIDE\workspace_1.16.1\TMS_MASTER_AMP_226\STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "TMS_MASTER_AMP_226.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Mari\STM32CubeIDE\workspace_1.16.1\TMS_MASTER_AMP_226\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TMS_MASTER_AMP_226.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+TMS_MASTER_AMP_226.elf TMS_MASTER_AMP_226.map: $(OBJS) $(USER_OBJS) ../STM32G491RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "TMS_MASTER_AMP_226.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"../STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TMS_MASTER_AMP_226.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

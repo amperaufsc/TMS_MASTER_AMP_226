@@ -9,9 +9,11 @@
 #include "stdbool.h"
 #include "stdint.h"
 
-/* Global flags for fault injection testing */
-bool simulateHighTemp = false;
-bool simulateCommLoss = false;
+/* Global flags for fault injection testing.
+ * volatile: garante que a escrita feita pelo Live Expressions/debugger
+ * seja sempre relida pelo firmware (senão o compilador pode cachear). */
+volatile bool simulateHighTemp = false;
+volatile bool simulateCommLoss = false;
 
 extern uint32_t slaveLastMessageTicks[numberOfSlaves];
 

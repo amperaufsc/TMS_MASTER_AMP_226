@@ -610,6 +610,12 @@ void xSendCANFunction(void *argument)
 		  if(m < numberOfSlaves && local_online){
 		  	  ntc_max = findMaxVal(local_slaveTemps);
 		  }
+
+		  /* Fault injection (scrutineering): força ntc_max ANTES do check de overtemp.
+		   * Arme via Live Expressions: simulateHighTemp = 1 (true). Funciona mesmo
+		   * com slave offline. Flui pra maxSentTemps -> aparece no CAN2 também. */
+		  injectFault(&ntc_max);
+
 		  // Coleta a estimada via Arrhenius-R_DC (Pega a pior dentre as 10 células do módulo)
 		  float est_module_max = 0.0f;
 		  for(int subCell = 0; subCell < 10; subCell++){
@@ -659,7 +665,7 @@ void xSendCANFunction(void *argument)
       }
 
 	  /* Send Master status and maximum temperatures to CAN2 */
-//	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);//maneuestupreiomichels
+	  sendMasterInfoToCAN(maxSentTemps, tmsErrorCode);
 
 #ifdef testLoopbackCAN1
 	  /* Generate artificial slave traffic if loopback testing is enabled */
@@ -671,8 +677,8 @@ void xSendCANFunction(void *argument)
 	  simulateInverterBurst();
 #endif
 
-	  /* Inject simulated faults if global debug flags are set */
-	  injectFault(&maxSentTemps[0]);
+	  /* (fault injection movido pra dentro do loop, sobre ntc_max, ANTES do
+	   * check de overtemp — ver injectFault(&ntc_max) acima.) */
 
 	  /* Visual heartbeat for OS health */
 	  HAL_GPIO_TogglePin(GPIOC, USER_LEDR_Pin);
