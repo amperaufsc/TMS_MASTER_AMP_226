@@ -717,22 +717,23 @@ void xCheckCommsFuncion(void *argument)
 	  /* Alimenta o algoritmo (espera Tensao da Celula e Corrente da Célula)
 	   * O Pack da Ampera 226 possui 8 paralelos. O bmsCurrent global precisa ser
 	   * fracionado (bmsCurrent / 8.0f) para o estimador processar a calibração de uma célula unitária P28A.
+	   * Módulo da corrente: estima igual em descarga e regen (o sinal se cancela
+	   * no R_DC = |dV/dI| de qualquer forma). Obs.: degrau que cruza o zero
+	   * (regen<->descarga simétrico) deixa de ser visto como pulso.
 	   */
 	  taskENTER_CRITICAL();
 	  float local_bmsCurrent = bmsCurrent;
-	  float local_emusCellVolts[40];
-	  memcpy(local_emusCellVolts, emusCellVolts, sizeof(local_emusCellVolts));
+	  float local_avgVolt    = cellAvgVoltage;   /* média do pack (CANSplitterID2) */
 	  taskEXIT_CRITICAL();
 
-	  float cellCurrent = local_bmsCurrent / 8.0f;
+	  float cellCurrent = fabsf(local_bmsCurrent) / 8.0f;
 
-	  /* Passa as 40 voltagens individuais pros 40 estimadores térmicos e salva pro Live Expressions */
+	  /* Todas as estimadas usam a MESMA tensão (average) e corrente: a média é
+	   * menos ruidosa que a leitura individual e o dV do degrau é coletivo. */
 	  for(int c = 0; c < 40; c++){
-		  float cellVolt = local_emusCellVolts[c];
-
 		  // Filtro profilático, não injeta zero-volts
-		  if(cellVolt > 1.0f) {
-		      bmsTempEstFeedSample(&cellTempEstimators[c], cellCurrent, cellVolt);
+		  if(local_avgVolt > 1.0f) {
+		      bmsTempEstFeedSample(&cellTempEstimators[c], cellCurrent, local_avgVolt);
 		  }
 
 		  if(bmsTempEstIsValid(&cellTempEstimators[c])) {

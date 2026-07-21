@@ -17,7 +17,9 @@
 #define K_B 8.617e-5f 
 
 // Limiar mínimo de variação de corrente [A] para acionar detecção de pulso
-#define DELTA_I_THRESHOLD 2.0f
+// 1.0A: permite medir com degraus menores (ex.: liga/desliga do carregador,
+// 10A pack = 1.25A/célula). Trade-off: mais sensível a ruído do sensor.
+#define DELTA_I_THRESHOLD 1.0f
 
 // Duração de espera (delta T) da resposta da célula [ms]
 #define PULSE_WAIT_MS 150
