@@ -166,6 +166,8 @@ void receiveCANFromSlaves(){
 	/* Check for Thermistor Disconnection faults sent by slaves */
 	for (uint8_t i = 0; i < numberOfSlaves; i++) {
 		if (id == slaveErrorIds[i]) {
+			/* Slave silenciado na simulacao -> ignora ate' o erro dele tambem */
+			if (simulateCommLoss & (1u << i)) return;
 			tmsErrorCode |= thermistorConnectionFault;
 			return;
 		}
@@ -175,6 +177,12 @@ void receiveCANFromSlaves(){
 	for (uint8_t slave = 0; slave < numberOfSlaves; slave++) {
 		uint32_t base = slaveBurstBaseId[slave];
 		if (id >= base && id < base + 8) {
+			/* INJECAO DE FALHA DE COMUNICACAO (Live Expressions):
+			 * descarta o quadro como se o slave tivesse parado de transmitir.
+			 * O timestamp nao e' atualizado -> envelhece -> timeout de 2s em
+			 * xCheckCommsFuncion levanta commFault e derruba slaveOnline. */
+			if (simulateCommLoss & (1u << slave)) return;
+
 			uint8_t burst = id - base;
 			processSlaveBurst(slave, burst);
 		}

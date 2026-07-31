@@ -749,9 +749,14 @@ void xCheckCommsFuncion(void *argument)
 	  taskEXIT_CRITICAL();
 	  for(int i = 0; i < numberOfSlaves; i++){
 		  if(atualTick - slaveLastMessageTicks[i] > 2000){
-			  slaveOnline[i] = false;
 			  taskENTER_CRITICAL();
 			  tmsErrorCode |= commFault;
+			  /* Slave calado: marca offline para o envio parar de usar a
+			   * temperatura VELHA que ficou no slaveTempBuffers. Sem isto o
+			   * master seguia transmitindo o ultimo valor como se fosse atual. */
+			  slaveOnline[i] = false;
+			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, SET);
+			  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, SET);
 			  taskEXIT_CRITICAL();
 		  }
 	  }

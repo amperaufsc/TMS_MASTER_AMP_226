@@ -3,8 +3,8 @@
 ../Core/Src/can.c:105:23:sendSingleFrame	72	static
 ../Core/Src/can.c:142:6:processSlaveBurst	40	static
 ../Core/Src/can.c:159:6:receiveCANFromSlaves	32	static
-../Core/Src/can.c:184:6:receiveCANFromGeral	48	static,ignoring_inline_asm
-../Core/Src/can.c:235:6:sendMasterInfoToCAN	80	static
-../Core/Src/can.c:262:6:sendToSlavesCAN	32	static
-../Core/Src/can.c:285:6:simulateSlaveBurst	32	static
-../Core/Src/can.c:292:6:simulateInverterBurst	96	static
+../Core/Src/can.c:192:6:receiveCANFromGeral	48	static,ignoring_inline_asm
+../Core/Src/can.c:243:6:sendMasterInfoToCAN	80	static
+../Core/Src/can.c:270:6:sendToSlavesCAN	32	static
+../Core/Src/can.c:293:6:simulateSlaveBurst	32	static
+../Core/Src/can.c:300:6:simulateInverterBurst	96	static

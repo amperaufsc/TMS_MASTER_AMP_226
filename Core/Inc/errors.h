@@ -8,6 +8,8 @@
 #ifndef INC_ERRORS_H_
 #define INC_ERRORS_H_
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "can.h"
 #include "main.h"
 
@@ -23,6 +25,10 @@
 
 #define thermistorsPerSlave 16
 #define thermistorsRecieved thermistorsPerSlave
+
+/* Flags de injecao de falha (escritas via Live Expressions no CubeIDE) */
+extern volatile bool     simulateHighTemp;  /* 1 = forca overtemperature NTC   */
+extern volatile uint8_t  simulateCommLoss;  /* bitmask: 1=Slave1 .. 8=Slave4   */
 
 int findMaxVal(const float *buffer);
 void injectFault(float *temp);

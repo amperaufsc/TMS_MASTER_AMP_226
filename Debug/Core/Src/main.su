@@ -10,6 +10,6 @@
 ../Core/Src/main.c:575:6:HAL_ADC_ConvCpltCallback	16	static
 ../Core/Src/main.c:591:6:xSendCANFunction	112	static
 ../Core/Src/main.c:697:6:xCheckCommsFuncion	48	static
-../Core/Src/main.c:770:6:xReadTempFunction	16	static
-../Core/Src/main.c:840:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:858:6:Error_Handler	72	static,ignoring_inline_asm
+../Core/Src/main.c:775:6:xReadTempFunction	16	static
+../Core/Src/main.c:845:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:863:6:Error_Handler	72	static,ignoring_inline_asm
